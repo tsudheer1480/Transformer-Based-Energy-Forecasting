@@ -1,0 +1,23 @@
+# Virtual environment
+energy_env/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Numpy arrays
+*.npy
+
+# CSV results (optional)
+baseline_results*.csv
+
+# Model weights
+*.pth
+*.pt
+
+# VS Code
+.vscode/
+# data folders
+data/raw/
+data/processed/
+*.csv
