@@ -21,3 +21,16 @@ baseline_results*.csv
 data/raw/
 data/processed/
 *.csv
+
+energy_env/
+energy_tft/
+venv/
+env/
+__pycache__/
+*.npy
+*.csv
+# Training artifacts
+checkpoints/
+lightning_logs/
+results/
+
