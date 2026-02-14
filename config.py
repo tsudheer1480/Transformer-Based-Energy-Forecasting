@@ -9,26 +9,23 @@ DATA_PATH = r"data/processed/final_energy_forecasting_dataset.csv"
 TIME_COL = "time"
 TARGET_COL = "load"
 
-TRAIN_RATIO = 0.7
-VAL_RATIO = 0.1
-TEST_RATIO = 0.2
-
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Using device:", DEVICE)
 
 # ==============================
-# 24H MODEL CONFIG
+# MULTI-TASK CONFIG
 # ==============================
 
-LOOKBACK = 720      # Using full 720 history
-HORIZON = 24
+LOOKBACK = 720
+
+HORIZON_24 = 24
+HORIZON_7D = 168
 
 BATCH_SIZE = 32
-EPOCHS = 20
+EPOCHS = 30
 
 MODEL_CONFIG = {
     "encoder_length": LOOKBACK,
-    "prediction_length": HORIZON,
     "hidden_size": 96,
     "attention_heads": 4,
     "dropout": 0.2,

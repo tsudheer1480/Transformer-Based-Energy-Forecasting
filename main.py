@@ -1,7 +1,7 @@
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
-from train import train_24h
-from evaluate_24h import evaluate_24h
+from train import train_multitask
+from evaluate_multitask import evaluate_multitask
 from config import DATA_PATH, FEATURE_CONFIG, TARGET_COL
 
 df = pd.read_csv(DATA_PATH)
@@ -29,10 +29,10 @@ df[TARGET_COL] = target_scaler.fit_transform(df[[TARGET_COL]])
 # TRAIN
 # ==========================
 
-model = train_24h(df, feature_cols)
+model = train_multitask(df, feature_cols)
 
 # ==========================
 # EVALUATE
 # ==========================
 
-evaluate_24h(df, feature_cols)
+evaluate_multitask(df, feature_cols)

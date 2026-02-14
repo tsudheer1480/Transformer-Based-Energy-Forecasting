@@ -3,18 +3,18 @@ import torch.nn as nn
 import os
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
-from models.hybrid_24h import Hybrid24H
-from preprocessing.dataset_24h import Dataset24H
+from models.hybrid_multitask import HybridMultiTask
+from preprocessing.dataset_multitask import DatasetMultiTask
 from config import *
 
 device = torch.device(DEVICE)
 
-def train_24h(df, feature_cols):
+def train_multitask(df, feature_cols):
 
-    dataset = Dataset24H(df, feature_cols)
+    dataset = DatasetMultiTask(df, feature_cols)
     loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-    model = Hybrid24H(len(feature_cols)).to(device)
+    model = HybridMultiTask(len(feature_cols)).to(device)
 
     optimizer = torch.optim.Adam(
         model.parameters(),
@@ -32,19 +32,24 @@ def train_24h(df, feature_cols):
     for epoch in range(EPOCHS):
         total_loss = 0
 
-        for batch_idx, (x, y) in enumerate(loader):
+        for batch_idx, (x, y24, y7d) in enumerate(loader):
 
-            x, y = x.to(device), y.to(device)
+            x = x.to(device)
+            y24 = y24.to(device)
+            y7d = y7d.to(device)
 
             optimizer.zero_grad()
 
-            preds, _ = model(x)
+            pred24, pred7d, _ = model(x)
 
             if epoch == 0 and batch_idx == 0:
-                print("Prediction shape:", preds.shape)
-                print("Target shape:", y.shape)
+                print("24h shape:", pred24.shape)
+                print("7d shape:", pred7d.shape)
 
-            loss = criterion(preds, y)
+            loss24 = criterion(pred24, y24)
+            loss7d = criterion(pred7d, y7d)
+
+            loss = loss24 + 0.5 * loss7d
 
             loss.backward()
             optimizer.step()
@@ -63,17 +68,16 @@ def train_24h(df, feature_cols):
     os.makedirs("results/models", exist_ok=True)
     os.makedirs("results/plots", exist_ok=True)
 
-    torch.save(model.state_dict(), "results/models/hybrid_24h.pth")
-    print("Model saved successfully.")
+    torch.save(model.state_dict(), "results/models/hybrid_multitask.pth")
 
     plt.figure()
     plt.plot(loss_history)
-    plt.title("Training Loss Curve (24h)")
+    plt.title("Training Loss (24h + 7d)")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
-    plt.savefig("results/plots/loss_curve_24h.png")
+    plt.savefig("results/plots/loss_multitask.png")
     plt.close()
 
-    print("Loss curve saved.")
+    print("Multi-task model saved.")
 
     return model
