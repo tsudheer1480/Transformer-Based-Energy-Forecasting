@@ -10,10 +10,10 @@ class LSTMModel(nn.Module):
 
     def forward(self, x):
         out, _ = self.lstm(x)
-        return self.fc(out[:, -1, :])
+        return   self.fc(out[:, -1, :])
 
 
-def train_lstm(model, X, y, epochs=5, batch_size=32, device="cpu"):
+def train_lstm  (model, X, y, epochs=5, batch_size=32, device="cpu"):
     model.to(device)
     X = X.to(device)
     y = y.to(device)
