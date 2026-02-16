@@ -14,7 +14,7 @@ def evaluate_multitask(df, feature_cols):
     loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
     model = HybridMultiTask(len(feature_cols)).to(DEVICE)
-    model.load_state_dict(torch.load("results/models/hybrid_multitask.pth"))
+    model.load_state_dict(torch.load("results/models/hybrid_multitask.pth", weights_only=True))
     model.eval()
 
     actual_24 = []

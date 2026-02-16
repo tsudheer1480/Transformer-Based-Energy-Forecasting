@@ -1,9 +1,5 @@
 import torch
 
-# ==============================
-# DATA CONFIG
-# ==============================
-
 DATA_PATH = r"data/processed/final_energy_forecasting_dataset.csv"
 
 TIME_COL = "time"
@@ -12,29 +8,24 @@ TARGET_COL = "load"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Using device:", DEVICE)
 
-# ==============================
-# MULTI-TASK CONFIG
-# ==============================
-
 LOOKBACK = 720
 
 HORIZON_24 = 24
 HORIZON_7D = 168
+HORIZON_30D = 720
+
+QUANTILES = [0.1, 0.5, 0.9]
+N_QUANTILES = len(QUANTILES)
 
 BATCH_SIZE = 32
 EPOCHS = 30
 
 MODEL_CONFIG = {
-    "encoder_length": LOOKBACK,
-    "hidden_size": 96,
-    "attention_heads": 4,
-    "dropout": 0.2,
-    "learning_rate": 0.0005,
+    "hidden_size": 128,
+    "attention_heads": 8,
+    "dropout": 0.25,        # increased dropout
+    "learning_rate": 0.0002  # reduced learning rate
 }
-
-# ==============================
-# FEATURE CONFIG
-# ==============================
 
 FEATURE_CONFIG = {
     "known_features": [
