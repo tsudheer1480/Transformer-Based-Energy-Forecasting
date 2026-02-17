@@ -11,7 +11,7 @@ from config import (
 )
 
 # ==============================
-# Sinusoidal Positional Encoding
+# Positional Encoding
 # ==============================
 
 class PositionalEncoding(nn.Module):
@@ -19,25 +19,25 @@ class PositionalEncoding(nn.Module):
         super().__init__()
 
         pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        position = torch.arange(0, max_len).unsqueeze(1)
 
         div_term = torch.exp(
-            torch.arange(0, d_model, 2).float() *
+            torch.arange(0, d_model, 2) *
             (-math.log(10000.0) / d_model)
         )
 
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
 
-        pe = pe.unsqueeze(0)  # shape: (1, max_len, d_model)
-        self.register_buffer('pe', pe)
+        pe = pe.unsqueeze(0)
+        self.register_buffer("pe", pe)
 
     def forward(self, x):
         return x + self.pe[:, :x.size(1), :]
 
 
 # ==============================
-# Multi-Scale Transformer
+# Multi-Scale Transformer Encoder Model
 # ==============================
 
 class HybridMultiTask(nn.Module):
@@ -46,26 +46,37 @@ class HybridMultiTask(nn.Module):
 
         hidden = MODEL_CONFIG["hidden_size"]
         heads = MODEL_CONFIG["attention_heads"]
+        dropout = MODEL_CONFIG["dropout"]
 
         self.weather_dim = 5
         self.main_dim = input_dim - self.weather_dim
 
+        # Embeddings
         self.main_embedding = nn.Linear(self.main_dim, hidden)
         self.weather_embedding = nn.Linear(self.weather_dim, hidden // 2)
 
         self.combine = nn.Linear(hidden + hidden // 2, hidden)
 
-        # 🔥 Positional Encoding
+        # Positional Encoding
         self.positional_encoding = PositionalEncoding(hidden)
 
-        self.attention = nn.MultiheadAttention(
-            embed_dim=hidden,
-            num_heads=heads,
+        # 🔥 Transformer Encoder Stack (2 layers)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=hidden,
+            nhead=heads,
+            dim_feedforward=hidden * 4,
+            dropout=dropout,
             batch_first=True
+        )
+
+        self.encoder = nn.TransformerEncoder(
+            encoder_layer,
+            num_layers=2
         )
 
         self.norm = nn.LayerNorm(hidden)
 
+        # Multi-scale heads
         self.fc_24 = nn.Linear(hidden, HORIZON_24 * N_QUANTILES)
         self.fc_7d = nn.Linear(hidden, HORIZON_7D * N_QUANTILES)
         self.fc_30d = nn.Linear(hidden, HORIZON_30D * N_QUANTILES)
@@ -81,11 +92,13 @@ class HybridMultiTask(nn.Module):
         combined = torch.cat([main_emb, weather_emb], dim=-1)
         x = self.combine(combined)
 
-        # 🔥 Add positional encoding here
+        # Add positional encoding
         x = self.positional_encoding(x)
 
-        attn_out, attn_weights = self.attention(x, x, x)
-        x = self.norm(attn_out + x)
+        # 🔥 Encoder stack
+        x = self.encoder(x)
+
+        x = self.norm(x)
 
         context = x[:, -1, :]
 
@@ -97,4 +110,4 @@ class HybridMultiTask(nn.Module):
         out_7d = out_7d.view(-1, HORIZON_7D, N_QUANTILES)
         out_30d = out_30d.view(-1, HORIZON_30D, N_QUANTILES)
 
-        return out_24, out_7d, out_30d, attn_weights
+        return out_24, out_7d, out_30d, None

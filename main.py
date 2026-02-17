@@ -1,10 +1,13 @@
+import torch
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from config import DATA_PATH, FEATURE_CONFIG, TARGET_COL
-from train import train_multiscale
 from evaluate_multiscale import evaluate_multiscale
-from explain_attention import visualize_attention
-from explain_features import feature_sensitivity
+from forecast_interface import interactive_forecast
+import warnings
+
+from train import train_multiscale
+warnings.filterwarnings("ignore")
 
 # ==========================
 # LOAD DATA
@@ -28,11 +31,13 @@ print("Number of features:", len(feature_cols))
 feature_scaler = StandardScaler()
 target_scaler = StandardScaler()
 
-df[feature_cols] = feature_scaler.fit_transform(df[feature_cols])
+feature_cols_no_target = [col for col in feature_cols if col != TARGET_COL]
+
+df[feature_cols_no_target] = feature_scaler.fit_transform(df[feature_cols_no_target])
 df[TARGET_COL] = target_scaler.fit_transform(df[[TARGET_COL]])
 
 # ==========================
-# TRAIN / TEST SPLIT (80/20)
+# TRAIN / TEST SPLIT
 # ==========================
 
 split_index = int(len(df) * 0.8)
@@ -44,25 +49,21 @@ print("Train size:", train_df.shape)
 print("Test size:", test_df.shape)
 
 # ==========================
-# TRAIN MODEL
-# ==========================
+# TRAIN MODEL 
+# ========================== 
 
-model = train_multiscale(train_df, feature_cols)
+# model = train_multiscale(train_df, feature_cols)
 
 # ==========================
 # EVALUATE MODEL
 # ==========================
 
-results = evaluate_multiscale(test_df, feature_cols)
+evaluate_multiscale(test_df, feature_cols)
+
+print("\nModel evaluation completed successfully.")
 
 # ==========================
-# EXPLAINABILITY
+# INTERACTIVE FORECAST SYSTEM
 # ==========================
 
-print("\nGenerating Attention Explanation...")
-visualize_attention(test_df, feature_cols)
-
-print("\nRunning Feature Sensitivity Analysis...")
-feature_sensitivity(test_df, feature_cols)
-
-print("\nPipeline completed successfully.")
+interactive_forecast(test_df, feature_cols, target_scaler)

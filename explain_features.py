@@ -4,6 +4,7 @@ from models.hybrid_multitask import HybridMultiTask
 from config import *
 from preprocessing.dataset_multitask import DatasetMultiTask
 
+
 def feature_sensitivity(df, feature_cols):
 
     dataset = DatasetMultiTask(df, feature_cols)
@@ -13,7 +14,7 @@ def feature_sensitivity(df, feature_cols):
 
     model = HybridMultiTask(len(feature_cols)).to(DEVICE)
     model.load_state_dict(
-        torch.load("results/models/hybrid_multiscale_quantile.pth", weights_only=True)
+        torch.load(MODEL_PATH, map_location=DEVICE)
     )
 
     model.eval()
@@ -21,14 +22,17 @@ def feature_sensitivity(df, feature_cols):
     with torch.no_grad():
         base_pred, _, _, _ = model(x_original)
 
-    base_value = base_pred[:, :, 1].mean().item()  # median forecast
+    base_value = base_pred[:, :, 1].mean().item()
 
     print("\nFeature Sensitivity (Impact on 24H Median Forecast):")
+
+    # ✅ Create dictionary
+    feature_impacts = {}
 
     for i, feature in enumerate(feature_cols):
 
         x_modified = x.clone()
-        x_modified[:, i] += 0.1  # small perturbation
+        x_modified[:, i] += 0.1
         x_modified = x_modified.unsqueeze(0).to(DEVICE)
 
         with torch.no_grad():
@@ -38,4 +42,10 @@ def feature_sensitivity(df, feature_cols):
 
         impact = new_value - base_value
 
+        # ✅ Store impact
+        feature_impacts[feature] = impact
+
         print(f"{feature}: {impact:.6f}")
+
+    # ✅ Return dictionary
+    return feature_impacts

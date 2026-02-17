@@ -18,7 +18,7 @@ QUANTILES = [0.1, 0.5, 0.9]
 N_QUANTILES = len(QUANTILES)
 
 BATCH_SIZE = 32
-EPOCHS = 30
+EPOCHS = 50
 
 MODEL_CONFIG = {
     "hidden_size": 128,
@@ -50,3 +50,6 @@ FEATURE_CONFIG = {
         "rolling_std_24"
     ]
 }
+
+MODEL_PATH = "results/models/hybrid_model_final_50epochs.pth"
+

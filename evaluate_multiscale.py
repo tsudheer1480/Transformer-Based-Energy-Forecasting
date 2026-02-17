@@ -15,7 +15,7 @@ def evaluate_multiscale(df, feature_cols):
     model = HybridMultiTask(len(feature_cols)).to(DEVICE)
 
     model.load_state_dict(
-        torch.load("results/models/hybrid_multiscale_quantile.pth", weights_only=True)
+        torch.load(MODEL_PATH, weights_only=True)
     )
 
     model.eval()

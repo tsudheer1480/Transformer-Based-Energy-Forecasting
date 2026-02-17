@@ -75,10 +75,19 @@ def train_multiscale(df, feature_cols):
 
         print(f"Epoch {epoch+1}, Loss: {total_loss:.4f}")
 
+    
+    # ==========================
+    # 🔥 SAVE FINAL MODEL HERE
+    # ==========================
+
+    import os
     os.makedirs("results/models", exist_ok=True)
 
-    torch.save(model.state_dict(), "results/models/hybrid_model_final_positional_v1.pth")
+    torch.save(
+        model.state_dict(),
+        MODEL_PATH
+    )
 
-    print("Quantile multi-scale model saved.")
+    print(f"\nFinal model saved to {MODEL_PATH}")
 
     return model
