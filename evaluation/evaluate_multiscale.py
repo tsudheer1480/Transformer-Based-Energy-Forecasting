@@ -11,6 +11,14 @@ def evaluate_multiscale(df, feature_cols):
 
     dataset = DatasetMultiTask(df, feature_cols)
     loader = DataLoader(dataset, batch_size=1, shuffle=False)
+    if len(dataset) == 0:
+        print("Evaluation skipped (insufficient samples in this window).")
+        return {
+        "24H_MAE": None,
+        "7D_MAE": None,
+        "30D_MAE": None
+    }
+
 
     model = HybridMultiTask(len(feature_cols)).to(DEVICE)
 
@@ -78,6 +86,18 @@ def evaluate_multiscale(df, feature_cols):
     mae_24, rmse_24 = compute_metrics(actual_24, p50_24)
     mae_7d, rmse_7d = compute_metrics(actual_7d, p50_7d)
     mae_30d, rmse_30d = compute_metrics(actual_30d, p50_30d)
+    # ==============================
+    # ERROR PERCENTAGE CALCULATION
+    # ==============================
+
+    mean_24 = np.mean(np.abs(actual_24))
+    mean_7d = np.mean(np.abs(actual_7d))
+    mean_30d = np.mean(np.abs(actual_30d))
+
+    error_pct_24 = (mae_24 / mean_24) * 100
+    error_pct_7d = (mae_7d / mean_7d) * 100
+    error_pct_30d = (mae_30d / mean_30d) * 100
+        
 
     # ==============================
     # COVERAGE
@@ -99,17 +119,59 @@ def evaluate_multiscale(df, feature_cols):
     print("24H MAE:", mae_24)
     print("24H RMSE:", rmse_24)
     print("24H Coverage:", cov_24)
+    print(f"24H Error Percentage: {error_pct_24:.2f}%")
 
     print("\n7D MAE:", mae_7d)
     print("7D RMSE:", rmse_7d)
     print("7D Coverage:", cov_7d)
+    print(f"7D Error Percentage: {error_pct_7d:.2f}%")
 
     print("\n30D MAE:", mae_30d)
     print("30D RMSE:", rmse_30d)
     print("30D Coverage:", cov_30d)
+    print(f"30D Error Percentage: {error_pct_30d:.2f}%")
 
     return {
-        "24H": (mae_24, rmse_24, cov_24),
-        "7D": (mae_7d, rmse_7d, cov_7d),
-        "30D": (mae_30d, rmse_30d, cov_30d)
+        "24H": (mae_24, rmse_24, cov_24, error_pct_24),
+        "7D": (mae_7d, rmse_7d, cov_7d, error_pct_7d),
+        "30D": (mae_30d, rmse_30d, cov_30d, error_pct_30d)
+        
     }
+
+def evaluate_24h_only(df, feature_cols):
+
+    dataset = DatasetMultiTask(df, feature_cols)
+
+    if len(dataset) <= 0:
+        print("Skipped (insufficient samples for 24H evaluation).")
+        return None
+
+    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
+
+    model = HybridMultiTask(len(feature_cols)).to(DEVICE)
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+    model.eval()
+
+    actual_24 = []
+    pred_24 = []
+
+    with torch.no_grad():
+        for x, y24, _, _ in loader:
+
+            x = x.to(DEVICE)
+            y24 = y24.to(DEVICE)
+
+            pred, _, _, _ = model(x)
+
+            pred = pred[:, :, 1]  # median
+            actual_24.append(y24.cpu().numpy())
+            pred_24.append(pred.cpu().numpy())
+
+    actual_24 = np.concatenate(actual_24)
+    pred_24 = np.concatenate(pred_24)
+
+    mae = np.mean(np.abs(actual_24 - pred_24))
+
+    print(f"24H MAE: {mae:.4f}")
+
+    return mae

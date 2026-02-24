@@ -3,6 +3,8 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from config import DATA_PATH, FEATURE_CONFIG, TARGET_COL
 from evaluate_multiscale import evaluate_multiscale
+from experiments.rolling_validation import rolling_window_evaluation
+from experiments.rolling_validation import rolling_window_evaluation
 from forecast_interface import interactive_forecast
 import warnings
 
@@ -61,6 +63,10 @@ print("Test size:", test_df.shape)
 evaluate_multiscale(test_df, feature_cols)
 
 print("\nModel evaluation completed successfully.")
+
+# Rolling Window
+rolling_window_evaluation(df, feature_cols)
+
 
 # ==========================
 # INTERACTIVE FORECAST SYSTEM
