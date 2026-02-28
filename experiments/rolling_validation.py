@@ -1,108 +1,97 @@
 import torch
 import numpy as np
 import pandas as pd
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
+from preprocessing.dataset_multitask import DatasetMultiTask
 from models.hybrid_multitask import HybridMultiTask
-from config import DEVICE, MODEL_PATH, LOOKBACK, TARGET_COL, BATCH_SIZE
+from config import DEVICE, MODEL_PATH
 
 
-# ==========================================================
-# 24H Rolling Dataset (Lightweight)
-# ==========================================================
+def rolling_window_evaluation(df, feature_cols, target_scaler):
 
-class Dataset24H(Dataset):
-    def __init__(self, df, feature_cols):
-        self.df = df.reset_index(drop=True)
-        self.feature_cols = feature_cols
-        self.lookback = LOOKBACK
-        self.horizon = 24
+    print("\n===== Rolling Window Evaluation (24H Only) =====")
 
-    def __len__(self):
-        return max(0, len(self.df) - self.lookback - self.horizon)
-
-    def __getitem__(self, idx):
-        x = self.df[self.feature_cols].iloc[idx:idx+self.lookback].values
-        y = self.df[TARGET_COL].iloc[idx+self.lookback:
-                                     idx+self.lookback+self.horizon].values
-
-        return torch.tensor(x, dtype=torch.float32), \
-               torch.tensor(y, dtype=torch.float32)
-
-
-# ==========================================================
-# Rolling Window Evaluation (Fixed Model)
-# ==========================================================
-
-def rolling_window_evaluation(df, feature_cols):
-
-    print("\n===== Rolling Window Evaluation (Fixed Model) =====")
-
-    df = df.copy()
-    df["time"] = pd.to_datetime(df["time"])
-
-    window_days = 60   # 60-day evaluation window
-    step_days = 30     # Move 30 days each iteration
+    window_days = 90
+    step_days = 30
 
     start_date = df["time"].min()
     end_date = df["time"].max()
 
-    all_mae = []
-
     current_start = start_date
 
-    while current_start + pd.Timedelta(days=window_days) <= end_date:
+    all_mae = []
+    all_pct = []
 
-        current_end = current_start + pd.Timedelta(days=window_days)
+    while True:
+
+        window_end = current_start + pd.Timedelta(days=window_days)
+
+        if window_end > end_date:
+            break
 
         window_df = df[
             (df["time"] >= current_start) &
-            (df["time"] < current_end)
+            (df["time"] < window_end)
         ]
 
-        print(f"\nWindow: {current_start.date()} → {current_end.date()}")
+        print(f"\nWindow: {current_start.date()} → {window_end.date()}")
 
-        dataset = Dataset24H(window_df, feature_cols)
+        dataset = DatasetMultiTask(window_df, feature_cols)
 
-        if len(dataset) <= 0:
-            print("Skipped (insufficient samples).")
+        if len(dataset) < 5:
+            print("Skipped (not enough usable sequences).")
             current_start += pd.Timedelta(days=step_days)
             continue
 
-        loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
+        loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
-        # Load trained model (DO NOT retrain)
         model = HybridMultiTask(len(feature_cols)).to(DEVICE)
         model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
         model.eval()
 
         actual = []
-        predicted = []
+        pred = []
 
         with torch.no_grad():
-            for x, y in loader:
-
+            for x, y24, _, _ in loader:
                 x = x.to(DEVICE)
+                p24, _, _, _ = model(x)
 
-                pred24, _, _, _ = model(x)
-                pred24 = pred24[:, :, 1]  # median
+                p24 = p24[:, :, 1]  # median (P50)
 
-                actual.append(y.numpy())
-                predicted.append(pred24.cpu().numpy())
+                actual.append(y24.numpy())
+                pred.append(p24.cpu().numpy())
 
         actual = np.concatenate(actual)
-        predicted = np.concatenate(predicted)
+        pred = np.concatenate(pred)
 
-        mae = np.mean(np.abs(actual - predicted))
-        print(f"Rolling 24H MAE: {mae:.4f}")
+        # ===============================
+        # CORRECT INVERSE (log + scaler)
+        # ===============================
 
-        all_mae.append(mae)
+        def inverse_to_mw(arr):
+            scaled = target_scaler.inverse_transform(arr.reshape(-1, 1))
+            return np.expm1(scaled).flatten()   # reverse log1p
+
+        actual_real = inverse_to_mw(actual)
+        pred_real = inverse_to_mw(pred)
+
+        mae_mw = np.mean(np.abs(actual_real - pred_real))
+        error_pct = (mae_mw / np.mean(actual_real)) * 100
+
+        print(f"24H MAE (MW): {mae_mw:,.2f}")
+        print(f"24H Error %: {error_pct:.2f}%")
+
+        all_mae.append(mae_mw)
+        all_pct.append(error_pct)
 
         current_start += pd.Timedelta(days=step_days)
 
     print("\n===== Rolling Stability Summary =====")
 
     if len(all_mae) > 0:
-        print(f"Average MAE across windows: {np.mean(all_mae):.4f}")
-        print(f"MAE Std Deviation: {np.std(all_mae):.4f}")
+        print(f"Average MAE (MW): {np.mean(all_mae):,.2f}")
+        print(f"Average Error %: {np.mean(all_pct):.2f}%")
+        print(f"Std Dev (%): {np.std(all_pct):.2f}%")
     else:
-        print("No valid rolling windows found.")
+        print("No valid rolling windows.")

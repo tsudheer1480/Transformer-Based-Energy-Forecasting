@@ -1,177 +1,116 @@
 import torch
 import numpy as np
-import os
-import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from preprocessing.dataset_multitask import DatasetMultiTask
 from models.hybrid_multitask import HybridMultiTask
-from config import *
+from config import DEVICE, MODEL_PATH
 
-def evaluate_multiscale(df, feature_cols):
+
+def evaluate_multiscale(df, feature_cols, target_scaler):
 
     dataset = DatasetMultiTask(df, feature_cols)
-    loader = DataLoader(dataset, batch_size=1, shuffle=False)
-    if len(dataset) == 0:
-        print("Evaluation skipped (insufficient samples in this window).")
-        return {
-        "24H_MAE": None,
-        "7D_MAE": None,
-        "30D_MAE": None
-    }
 
+    if len(dataset) == 0:
+        print("Evaluation skipped (insufficient samples).")
+        return None
+
+    loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
     model = HybridMultiTask(len(feature_cols)).to(DEVICE)
-
-    model.load_state_dict(
-        torch.load(MODEL_PATH, weights_only=True)
-    )
-
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
     model.eval()
 
-    actual_24, actual_7d, actual_30d = [], [], []
-    p10_24, p50_24, p90_24 = [], [], []
-    p10_7d, p50_7d, p90_7d = [], [], []
-    p10_30d, p50_30d, p90_30d = [], [], []
+    actual_24, pred_24 = [], []
+    actual_7d, pred_7d = [], []
+    actual_30d, pred_30d = [], []
 
     with torch.no_grad():
         for x, y24, y7d, y30d in loader:
 
             x = x.to(DEVICE)
 
-            pred24, pred7d, pred30d, _ = model(x)
+            p24, p7d, p30d, _ = model(x)
 
-            # 24H
-            actual_24.append(y24.numpy().flatten())
-            p10_24.append(pred24[:, :, 0].cpu().numpy().flatten())
-            p50_24.append(pred24[:, :, 1].cpu().numpy().flatten())
-            p90_24.append(pred24[:, :, 2].cpu().numpy().flatten())
+            # Median prediction (P50)
+            p24 = p24[:, :, 1]
+            p7d = p7d[:, :, 1]
+            p30d = p30d[:, :, 1]
 
-            # 7D
-            actual_7d.append(y7d.numpy().flatten())
-            p10_7d.append(pred7d[:, :, 0].cpu().numpy().flatten())
-            p50_7d.append(pred7d[:, :, 1].cpu().numpy().flatten())
-            p90_7d.append(pred7d[:, :, 2].cpu().numpy().flatten())
+            actual_24.append(y24.numpy())
+            pred_24.append(p24.cpu().numpy())
 
-            # 30D
-            actual_30d.append(y30d.numpy().flatten())
-            p10_30d.append(pred30d[:, :, 0].cpu().numpy().flatten())
-            p50_30d.append(pred30d[:, :, 1].cpu().numpy().flatten())
-            p90_30d.append(pred30d[:, :, 2].cpu().numpy().flatten())
+            actual_7d.append(y7d.numpy())
+            pred_7d.append(p7d.cpu().numpy())
 
-    # Convert to arrays
+            actual_30d.append(y30d.numpy())
+            pred_30d.append(p30d.cpu().numpy())
+
+    # ==============================
+    # CONCATENATE
+    # ==============================
+
     actual_24 = np.concatenate(actual_24)
-    p10_24 = np.concatenate(p10_24)
-    p50_24 = np.concatenate(p50_24)
-    p90_24 = np.concatenate(p90_24)
+    pred_24 = np.concatenate(pred_24)
 
     actual_7d = np.concatenate(actual_7d)
-    p10_7d = np.concatenate(p10_7d)
-    p50_7d = np.concatenate(p50_7d)
-    p90_7d = np.concatenate(p90_7d)
+    pred_7d = np.concatenate(pred_7d)
 
     actual_30d = np.concatenate(actual_30d)
-    p10_30d = np.concatenate(p10_30d)
-    p50_30d = np.concatenate(p50_30d)
-    p90_30d = np.concatenate(p90_30d)
+    pred_30d = np.concatenate(pred_30d)
 
     # ==============================
-    # METRICS (Median)
+    # INVERSE SCALE + EXP BACK TO MW
     # ==============================
 
-    def compute_metrics(actual, pred):
-        mae = np.mean(np.abs(actual - pred))
-        rmse = np.sqrt(np.mean((actual - pred) ** 2))
-        return mae, rmse
+    def inverse_to_mw(arr):
+        scaled = target_scaler.inverse_transform(arr.reshape(-1, 1))
+        return np.expm1(scaled).flatten()   # reverse log1p
 
-    mae_24, rmse_24 = compute_metrics(actual_24, p50_24)
-    mae_7d, rmse_7d = compute_metrics(actual_7d, p50_7d)
-    mae_30d, rmse_30d = compute_metrics(actual_30d, p50_30d)
-    # ==============================
-    # ERROR PERCENTAGE CALCULATION
-    # ==============================
+    actual_24_real = inverse_to_mw(actual_24)
+    pred_24_real = inverse_to_mw(pred_24)
 
-    mean_24 = np.mean(np.abs(actual_24))
-    mean_7d = np.mean(np.abs(actual_7d))
-    mean_30d = np.mean(np.abs(actual_30d))
+    actual_7d_real = inverse_to_mw(actual_7d)
+    pred_7d_real = inverse_to_mw(pred_7d)
 
-    error_pct_24 = (mae_24 / mean_24) * 100
-    error_pct_7d = (mae_7d / mean_7d) * 100
-    error_pct_30d = (mae_30d / mean_30d) * 100
-        
+    actual_30d_real = inverse_to_mw(actual_30d)
+    pred_30d_real = inverse_to_mw(pred_30d)
 
     # ==============================
-    # COVERAGE
+    # MAE (MW)
     # ==============================
 
-    def coverage(actual, lower, upper):
-        inside = np.logical_and(actual >= lower, actual <= upper)
-        return np.mean(inside)
+    mae_24_mw = np.mean(np.abs(actual_24_real - pred_24_real))
+    mae_7d_mw = np.mean(np.abs(actual_7d_real - pred_7d_real))
+    mae_30d_mw = np.mean(np.abs(actual_30d_real - pred_30d_real))
 
-    cov_24 = coverage(actual_24, p10_24, p90_24)
-    cov_7d = coverage(actual_7d, p10_7d, p90_7d)
-    cov_30d = coverage(actual_30d, p10_30d, p90_30d)
+    # ==============================
+    # ERROR PERCENTAGE (per horizon)
+    # ==============================
+
+    error_pct_24 = (mae_24_mw / np.mean(actual_24_real)) * 100
+    error_pct_7d = (mae_7d_mw / np.mean(actual_7d_real)) * 100
+    error_pct_30d = (mae_30d_mw / np.mean(actual_30d_real)) * 100
 
     # ==============================
     # PRINT RESULTS
     # ==============================
 
-    print("\n===== FINAL TEST RESULTS =====")
-    print("24H MAE:", mae_24)
-    print("24H RMSE:", rmse_24)
-    print("24H Coverage:", cov_24)
+    print("\n===== FINAL TEST RESULTS (REAL MW) =====")
+
+    print(f"24H MAE (MW): {mae_24_mw:,.2f}")
     print(f"24H Error Percentage: {error_pct_24:.2f}%")
 
-    print("\n7D MAE:", mae_7d)
-    print("7D RMSE:", rmse_7d)
-    print("7D Coverage:", cov_7d)
+    print(f"\n7D MAE (MW): {mae_7d_mw:,.2f}")
     print(f"7D Error Percentage: {error_pct_7d:.2f}%")
 
-    print("\n30D MAE:", mae_30d)
-    print("30D RMSE:", rmse_30d)
-    print("30D Coverage:", cov_30d)
+    print(f"\n30D MAE (MW): {mae_30d_mw:,.2f}")
     print(f"30D Error Percentage: {error_pct_30d:.2f}%")
 
     return {
-        "24H": (mae_24, rmse_24, cov_24, error_pct_24),
-        "7D": (mae_7d, rmse_7d, cov_7d, error_pct_7d),
-        "30D": (mae_30d, rmse_30d, cov_30d, error_pct_30d)
-        
+        "24H_MAE_MW": mae_24_mw,
+        "24H_Error_%": error_pct_24,
+        "7D_MAE_MW": mae_7d_mw,
+        "7D_Error_%": error_pct_7d,
+        "30D_MAE_MW": mae_30d_mw,
+        "30D_Error_%": error_pct_30d
     }
-
-def evaluate_24h_only(df, feature_cols):
-
-    dataset = DatasetMultiTask(df, feature_cols)
-
-    if len(dataset) <= 0:
-        print("Skipped (insufficient samples for 24H evaluation).")
-        return None
-
-    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
-
-    model = HybridMultiTask(len(feature_cols)).to(DEVICE)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
-    model.eval()
-
-    actual_24 = []
-    pred_24 = []
-
-    with torch.no_grad():
-        for x, y24, _, _ in loader:
-
-            x = x.to(DEVICE)
-            y24 = y24.to(DEVICE)
-
-            pred, _, _, _ = model(x)
-
-            pred = pred[:, :, 1]  # median
-            actual_24.append(y24.cpu().numpy())
-            pred_24.append(pred.cpu().numpy())
-
-    actual_24 = np.concatenate(actual_24)
-    pred_24 = np.concatenate(pred_24)
-
-    mae = np.mean(np.abs(actual_24 - pred_24))
-
-    print(f"24H MAE: {mae:.4f}")
-
-    return mae

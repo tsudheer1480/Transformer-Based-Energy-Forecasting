@@ -1,31 +1,31 @@
-import os
 import numpy as np
 
-def generate_dynamic_explanation(feature_impacts, p10_real, p50_real, p90_real):
+def dynamic_summary(values, horizon=""):
 
-    # Detect peak hour
-    peak_hour = int(np.argmax(p50_real)) + 1
-    peak_value = float(np.max(p50_real))
+    values = np.array(values)
 
-    # Calculate average uncertainty
-    avg_uncertainty = float((p90_real - p10_real).mean())
+    mean_val = np.mean(values)
+    max_val = np.max(values)
+    min_val = np.min(values)
+    std_val = np.std(values)
 
-    # Generate 2-line simple explanation
-    summary = (
-        "\n\n================= SIMPLE MODEL SUMMARY =================\n\n"
-        "The forecast is mainly based on recent electricity usage patterns "
-        "and the regular daily demand cycle. Since electricity consumption "
-        f"typically rises in the evening, the model predicts a peak around "
-        f"hour {peak_hour} (approximately {peak_value:,.0f} MW), while also "
-        f"providing a reasonable uncertainty range of about {avg_uncertainty:,.0f} MW "
-        "to account for normal variations.\n"
-    )
+    peak_index = np.argmax(values)
+    low_index = np.argmin(values)
 
-    print(summary)
+    trend = "increasing" if values[-1] > values[0] else "decreasing"
 
-    # Save to file
-    os.makedirs("results/reports", exist_ok=True)
-    with open("results/reports/simple_model_summary.txt", "w") as f:
-        f.write(summary)
+    summary = f"""
+Trend Analysis ({horizon}):
 
-    print("Simple summary saved to results/reports/simple_model_summary.txt")
+• Average projected load: {mean_val:,.2f} MW
+• Maximum projected load: {max_val:,.2f} MW
+• Minimum projected load: {min_val:,.2f} MW
+• Volatility (Std Dev): {std_val:,.2f} MW
+• Overall trend direction: {trend}
+
+The forecast indicates structural demand variation 
+with peak occurring at index position {peak_index}
+and minimum at position {low_index}.
+"""
+
+    return summary

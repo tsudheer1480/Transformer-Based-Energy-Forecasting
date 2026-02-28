@@ -7,6 +7,7 @@ from config import *
 
 device = torch.device(DEVICE)
 
+
 # ==============================
 # Quantile Loss
 # ==============================
@@ -23,6 +24,10 @@ def quantile_loss(preds, target, quantiles):
     return sum(losses)
 
 
+# ==============================
+# Training Function
+# ==============================
+
 def train_multiscale(df, feature_cols):
 
     dataset = DatasetMultiTask(df, feature_cols)
@@ -30,12 +35,14 @@ def train_multiscale(df, feature_cols):
 
     model = HybridMultiTask(len(feature_cols)).to(device)
 
-    optimizer = torch.optim.Adam(
+    # 🔥 AdamW (better generalization than Adam)
+    optimizer = torch.optim.AdamW(
         model.parameters(),
-        lr=MODEL_CONFIG["learning_rate"]
+        lr=MODEL_CONFIG["learning_rate"],
+        weight_decay=1e-4
     )
 
-    # 🔥 Cosine scheduler
+    # 🔥 Cosine LR Scheduler
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
         T_max=EPOCHS
@@ -43,7 +50,11 @@ def train_multiscale(df, feature_cols):
 
     loss_history = []
 
+    print("\n===== Training Started =====")
+
     for epoch in range(EPOCHS):
+
+        model.train()
         total_loss = 0
 
         for x, y24, y7d, y30d in loader:
@@ -61,26 +72,31 @@ def train_multiscale(df, feature_cols):
             loss7d = quantile_loss(pred7d, y7d, QUANTILES)
             loss30d = quantile_loss(pred30d, y30d, QUANTILES)
 
-            # 🔥 Adjusted horizon weights
-            loss = loss24 + 0.4 * loss7d + 0.15 * loss30d
+            # 🔥 Better horizon weighting (focus more on 24H)
+            loss = loss24 + 0.3 * loss7d + 0.1 * loss30d
 
             loss.backward()
+
+            # ✅ GRADIENT CLIPPING (prevents seasonal instability)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
             optimizer.step()
 
             total_loss += loss.item()
 
         scheduler.step()
 
-        loss_history.append(total_loss)
+        avg_loss = total_loss / len(loader)
+        loss_history.append(avg_loss)
 
-        print(f"Epoch {epoch+1}, Loss: {total_loss:.4f}")
+        print(f"Epoch {epoch+1}/{EPOCHS}, Avg Loss: {avg_loss:.6f}")
 
-    
+    print("\n===== Training Complete =====")
+
     # ==========================
-    # 🔥 SAVE FINAL MODEL HERE
+    # SAVE FINAL MODEL
     # ==========================
 
-    import os
     os.makedirs("results/models", exist_ok=True)
 
     torch.save(

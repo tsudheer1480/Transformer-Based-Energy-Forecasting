@@ -2,22 +2,27 @@ import torch
 import pandas as pd
 import numpy as np
 import datetime
-import matplotlib.pyplot as plt
-import seaborn as sns
+import os
+import plotly.graph_objects as go
 
 from models.hybrid_multitask import HybridMultiTask
-from preprocessing.dataset_multitask import DatasetMultiTask
-from config import DEVICE, MODEL_PATH
-from explain_academic import (
-    generate_research_summary_24h,
-    generate_research_summary_multi
-)
+from config import DEVICE, MODEL_PATH, MODEL_CONFIG,LOOKBACK
 
-sns.set_style("darkgrid")
-sns.set_context("talk")
+# Explainability imports
+from explainability.explain_dynamic import dynamic_summary
+from explainability.explain_academic import academic_explanation
+from explainability.explain_attention import attention_explanation
+from explainability.explain_features import feature_explanation
 
 
 def interactive_forecast(df, feature_cols, target_scaler):
+
+
+    if len(df) < LOOKBACK:
+        print("Not enough data for forecasting.")
+        return
+
+    print("\n===== FUTURE FORECAST SYSTEM =====")
 
     last_date = pd.to_datetime(df["time"].iloc[-1])
 
@@ -26,16 +31,23 @@ def interactive_forecast(df, feature_cols, target_scaler):
     print("Forecasts start from next hour onward.")
     print("==========================================\n")
 
-    dataset = DatasetMultiTask(df, feature_cols)
-    x, _, _, _ = dataset[0]
-    x = x.unsqueeze(0).to(DEVICE)
+    # ==============================
+    # Prepare input window
+    # ==============================
+
+    recent_window = df.iloc[-LOOKBACK:][feature_cols].values
+    x = torch.tensor(recent_window, dtype=torch.float32).unsqueeze(0).to(DEVICE)
+
+    # ==============================
+    # Load model
+    # ==============================
 
     model = HybridMultiTask(len(feature_cols)).to(DEVICE)
     model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
     model.eval()
 
     with torch.no_grad():
-        pred24, pred7d, pred30d, _ = model(x)
+        pred24, pred7d, pred30d, attention = model(x)
 
     def inverse(pred):
         return target_scaler.inverse_transform(
@@ -53,41 +65,51 @@ def interactive_forecast(df, feature_cols, target_scaler):
 
     choice = input("Enter choice (1/2/3): ")
 
-    # =======================
+    os.makedirs("results/plots", exist_ok=True)
+
+    # =========================================================
     # 24 HOURS
-    # =======================
+    # =========================================================
 
     if choice == "1":
 
-        forecast_times = [
+        future_times = [
             last_date + datetime.timedelta(hours=i+1)
             for i in range(24)
         ]
 
         print("\n24-Hour Forecast:\n")
-
         for i in range(24):
-            print(f"{forecast_times[i].strftime('%Y-%m-%d %A %H:%M')} → {p50_24[i]:,.2f} MW")
+            print(f"{future_times[i]} → {p50_24[i]:,.2f} MW")
 
-        plt.figure(figsize=(12, 6))
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=future_times,
+            y=p50_24[:24],
+            mode='lines+markers',
+            hovertemplate='Time: %{x}<br>Load: %{y:.2f} MW'
+        ))
 
-        sns.lineplot(x=forecast_times, y=p50_24, linewidth=2.5, color="royalblue")
+        fig.update_layout(
+            title="Next 24 Hours Forecast",
+            template="plotly_white",
+            hovermode="x unified"
+        )
 
-        peak_idx = np.argmax(p50_24)
-        plt.scatter(forecast_times[peak_idx], p50_24[peak_idx], color="red", s=120)
-        plt.title("24-Hour Load Forecast", fontweight="bold")
-        plt.xlabel("Date & Time")
-        plt.ylabel("Load (MW)")
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.show()
+        fig.write_html("results/plots/forecast_24h.html")
+        fig.show(renderer="browser")
 
-        print("\nResearch-Level Summary:\n")
-        print(generate_research_summary_24h(p50_24))
+        # ===== Explainability =====
+        print("\n===== Forecast Explanation =====\n")
 
-    # =======================
+        print(dynamic_summary(p50_24[:24], horizon="24H"))
+        print("\n", academic_explanation(p50_24[:24], horizon="24H"))
+        print("\n", attention_explanation(attention, horizon="24H"))
+        print("\n", feature_explanation(feature_cols))
+
+    # =========================================================
     # 7 DAYS
-    # =======================
+    # =========================================================
 
     elif choice == "2":
 
@@ -97,29 +119,41 @@ def interactive_forecast(df, feature_cols, target_scaler):
         print("\n7-Day Forecast:\n")
 
         for d in range(7):
-            target_date = last_date + datetime.timedelta(days=d+1)
-            daily_avg = p50_7d[d*24:(d+1)*24].mean()
+            date = last_date + datetime.timedelta(days=d+1)
+            avg = p50_7d[d*24:(d+1)*24].mean()
+            daily_values.append(avg)
+            dates.append(date)
 
-            daily_values.append(daily_avg)
-            dates.append(target_date.strftime("%Y-%m-%d"))
+            print(f"{date.strftime('%Y-%m-%d %A')} → {avg:,.2f} MW")
 
-            print(f"{target_date.strftime('%Y-%m-%d %A')} → {daily_avg:,.2f} MW")
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=dates,
+            y=daily_values,
+            mode='lines+markers',
+            hovertemplate='Date: %{x}<br>Load: %{y:.2f} MW'
+        ))
 
-        plt.figure(figsize=(10, 5))
-        sns.lineplot(x=dates, y=daily_values, marker="o", linewidth=2.5, color="seagreen")
-        plt.title("7-Day Average Load Forecast", fontweight="bold")
-        plt.xlabel("Date")
-        plt.ylabel("Average Load (MW)")
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.show()
+        fig.update_layout(
+            title="Next 7 Days Forecast",
+            template="plotly_white",
+            hovermode="x unified"
+        )
 
-        print("\nResearch-Level Summary:\n")
-        print(generate_research_summary_multi(daily_values, "7-day"))
+        fig.write_html("results/plots/forecast_7days.html")
+        fig.show(renderer="browser")
 
-    # =======================
+        # ===== Explainability =====
+        print("\n===== Forecast Explanation =====\n")
+
+        print(dynamic_summary(daily_values, horizon="7D"))
+        print("\n", academic_explanation(daily_values, horizon="7D"))
+        print("\n", attention_explanation(attention, horizon="7D"))
+        print("\n", feature_explanation(feature_cols))
+
+    # =========================================================
     # 30 DAYS
-    # =======================
+    # =========================================================
 
     elif choice == "3":
 
@@ -129,25 +163,37 @@ def interactive_forecast(df, feature_cols, target_scaler):
         print("\n30-Day Forecast:\n")
 
         for d in range(30):
-            target_date = last_date + datetime.timedelta(days=d+1)
-            daily_avg = p50_30d[d*24:(d+1)*24].mean()
+            date = last_date + datetime.timedelta(days=d+1)
+            avg = p50_30d[d*24:(d+1)*24].mean()
+            daily_values.append(avg)
+            dates.append(date)
 
-            daily_values.append(daily_avg)
-            dates.append(target_date.strftime("%m-%d"))
+            print(f"{date.strftime('%Y-%m-%d %A')} → {avg:,.2f} MW")
 
-            print(f"{target_date.strftime('%Y-%m-%d %A')} → {daily_avg:,.2f} MW")
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=dates,
+            y=daily_values,
+            mode='lines+markers',
+            hovertemplate='Date: %{x}<br>Load: %{y:.2f} MW'
+        ))
 
-        plt.figure(figsize=(12, 5))
-        sns.lineplot(x=dates, y=daily_values, linewidth=2, color="purple")
-        plt.title("30-Day Average Load Forecast", fontweight="bold")
-        plt.xlabel("Date")
-        plt.ylabel("Average Load (MW)")
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.show()
+        fig.update_layout(
+            title="Next 30 Days Forecast",
+            template="plotly_white",
+            hovermode="x unified"
+        )
 
-        print("\nResearch-Level Summary:\n")
-        print(generate_research_summary_multi(daily_values, "30-day"))
+        fig.write_html("results/plots/forecast_30days.html")
+        fig.show(renderer="browser")
+
+        # ===== Explainability =====
+        print("\n===== Forecast Explanation =====\n")
+
+        print(dynamic_summary(daily_values, horizon="30D"))
+        print("\n", academic_explanation(daily_values, horizon="30D"))
+        print("\n", attention_explanation(attention, horizon="30D"))
+        print("\n", feature_explanation(feature_cols))
 
     else:
-        print("Invalid selection. Please choose 1, 2, or 3.")
+        print("Invalid selection.")

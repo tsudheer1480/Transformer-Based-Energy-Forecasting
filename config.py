@@ -18,13 +18,13 @@ QUANTILES = [0.1, 0.5, 0.9]
 N_QUANTILES = len(QUANTILES)
 
 BATCH_SIZE = 32
-EPOCHS = 50
+EPOCHS = 80
 
 MODEL_CONFIG = {
     "hidden_size": 128,
     "attention_heads": 8,
     "dropout": 0.25,        # increased dropout
-    "learning_rate": 0.0002  # reduced learning rate
+    "learning_rate": 0.0005  # reduced learning rate
 }
 
 FEATURE_CONFIG = {
@@ -51,5 +51,5 @@ FEATURE_CONFIG = {
     ]
 }
 
-MODEL_PATH = "results/models/hybrid_model_final_50epochs.pth"
+MODEL_PATH = "results/models/New_hybrid_model_final_80epochs.pth"
 

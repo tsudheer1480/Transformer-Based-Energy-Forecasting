@@ -1,37 +1,26 @@
-import torch
 import numpy as np
-import matplotlib.pyplot as plt
-from models.hybrid_multitask import HybridMultiTask
-from config import *
-from preprocessing.dataset_multitask import DatasetMultiTask
+import torch
 
-def visualize_attention(df, feature_cols):
+def attention_explanation(attention, horizon=""):
 
-    dataset = DatasetMultiTask(df, feature_cols)
+    if attention is None:
+        return f"Attention weights unavailable for {horizon} forecast."
 
-    # Take one example from test set
-    x, y24, y7d, y30d = dataset[0]
-    x = x.unsqueeze(0).to(DEVICE)
+    if isinstance(attention, torch.Tensor):
+        attention = attention.detach().cpu().numpy()
 
-    model = HybridMultiTask(len(feature_cols)).to(DEVICE)
-    model.load_state_dict(
-        torch.load(MODEL_PATH, weights_only=True)
-    )
+    avg_attention = np.mean(attention)
 
-    model.eval()
+    explanation = f"""
+Attention Insight ({horizon}):
 
-    with torch.no_grad():
-        pred24, pred7d, pred30d, attn_weights = model(x)
+The attention mechanism indicates average temporal 
+importance weight of {avg_attention:.4f}, suggesting 
+recent historical patterns significantly influence 
+current forecast generation.
 
-    # Average attention across heads
-    attn = attn_weights.mean(dim=1).squeeze().cpu().numpy()
+Higher attention weights imply stronger short-term 
+temporal dependency within the encoder representation.
+"""
 
-    plt.figure(figsize=(10,5))
-    plt.plot(attn[-1])  # last timestep attention
-    plt.title("Attention Weights (Influence of Past Timesteps)")
-    plt.xlabel("Past Hour Index (0 = oldest, 719 = most recent)")
-    plt.ylabel("Attention Importance")
-    plt.savefig("results/plots/attention_explanation.png")
-    plt.close()
-
-    print("Attention visualization saved.")
+    return explanation
