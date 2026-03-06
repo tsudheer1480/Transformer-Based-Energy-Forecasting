@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from preprocessing.dataset_multitask import DatasetMultiTask
 from models.hybrid_multitask import HybridMultiTask
 from config import DEVICE, MODEL_PATH
-
+import os
 
 def evaluate_multiscale(df, feature_cols, target_scaler):
 
@@ -17,9 +17,12 @@ def evaluate_multiscale(df, feature_cols, target_scaler):
     loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
     model = HybridMultiTask(len(feature_cols)).to(DEVICE)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
-    model.eval()
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    MODEL_FULL_PATH = os.path.join(BASE_DIR, MODEL_PATH)
 
+    model.load_state_dict(torch.load(MODEL_FULL_PATH, map_location=DEVICE, weights_only=True))    
+    model.eval()
+ 
     actual_24, pred_24 = [], []
     actual_7d, pred_7d = [], []
     actual_30d, pred_30d = [], []

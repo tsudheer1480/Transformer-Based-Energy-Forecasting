@@ -34,3 +34,8 @@ checkpoints/
 lightning_logs/
 results/
 
+__pycache__/
+*.pt
+
+.env
+node_modules/

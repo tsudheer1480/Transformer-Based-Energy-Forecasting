@@ -3,11 +3,12 @@ import pandas as pd
 from sklearn.preprocessing import RobustScaler
 import warnings
 
+import joblib
 from config import DATA_PATH, FEATURE_CONFIG, TARGET_COL
 from training.train import train_multiscale
 from evaluation.evaluate_multiscale import evaluate_multiscale
 from experiments.rolling_validation import rolling_window_evaluation
-from interface.forecast_interface import interactive_forecast
+from interface.forecast_interface import generate_forecast_outputs
 
 warnings.filterwarnings("ignore")
 
@@ -19,7 +20,7 @@ print("==============================\n")
 # LOAD DATA
 # ==========================================
 
-df = pd.read_csv(DATA_PATH)
+df = pd.read_csv(r"D:\Course\python\energy forecasting\preprocessing\evaluation_test_30d_big.csv")
 
 df["time"] = pd.to_datetime(df["time"])
 df = df.sort_values("time").reset_index(drop=True)
@@ -75,6 +76,7 @@ test_df[feature_cols_no_target] = feature_scaler.transform(
     test_df[feature_cols_no_target]
 )
 
+
 # Log transform target
 train_df[TARGET_COL] = np.log1p(train_df[TARGET_COL])
 test_df[TARGET_COL] = np.log1p(test_df[TARGET_COL])
@@ -83,6 +85,10 @@ test_df[TARGET_COL] = np.log1p(test_df[TARGET_COL])
 train_df[TARGET_COL] = target_scaler.fit_transform(train_df[[TARGET_COL]])
 test_df[TARGET_COL] = target_scaler.transform(test_df[[TARGET_COL]])
 
+# 🔥 NOW SAVE SCALERS
+joblib.dump(feature_scaler, "results/models/feature_scaler.pkl")
+joblib.dump(target_scaler, "results/models/target_scaler.pkl")
+print("Scalers saved successfully.")
 # Merge back for rolling + forecasting
 df_scaled = pd.concat([train_df, test_df]).reset_index(drop=True)
 
@@ -100,10 +106,12 @@ df_scaled = pd.concat([train_df, test_df]).reset_index(drop=True)
 
 print("\n===== FINAL MODEL EVALUATION =====")
 
-evaluate_multiscale(test_df, feature_cols, target_scaler)
-
+evaluate_multiscale(df_scaled, feature_cols, target_scaler)
 print("\nModel evaluation completed successfully.")
-
+print("Training feature columns:")
+print(feature_cols)
+print("Final feature order used for training:")
+print(train_df[feature_cols].columns.tolist())
 # ==========================================
 # ROLLING WINDOW VALIDATION
 # ==========================================
@@ -118,8 +126,8 @@ print("\nModel evaluation completed successfully.")
 # INTERACTIVE FORECAST SYSTEM
 # ==========================================
 
-print("\n===== FUTURE FORECAST SYSTEM =====")
+# print("\n===== FUTURE FORECAST SYSTEM =====")
 
-interactive_forecast(df_scaled, feature_cols, target_scaler)
+generate_forecast_outputs(df_scaled, feature_cols, target_scaler)
 
 print("\nSystem execution completed successfully.")
