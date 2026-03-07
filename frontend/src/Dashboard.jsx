@@ -46,7 +46,7 @@ try{
 setLoading(true)
 
 const res = await axios.post(
-"http://127.0.0.1:8000/run_model",
+"https://your-service-name.onrender.com/run_model",
 formData
 )
 
