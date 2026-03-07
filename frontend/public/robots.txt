@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://transformer-based-energy-forecastin.vercel.app/sitemap.xml
