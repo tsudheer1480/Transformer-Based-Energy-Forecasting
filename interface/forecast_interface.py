@@ -196,10 +196,6 @@ def generate_forecast_outputs(df, feature_cols, target_scaler, model):
     recent_window = df.iloc[-LOOKBACK:][feature_cols].values
     x = torch.tensor(recent_window, dtype=torch.float32).unsqueeze(0).to(DEVICE)
 
-    # model = HybridMultiTask(len(feature_cols)).to(DEVICE)
-    # model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
-    # model.eval()
-
     with torch.no_grad():
         pred24, pred7d, pred30d, attention = model(x)
 
@@ -234,6 +230,7 @@ def generate_forecast_outputs(df, feature_cols, target_scaler, model):
     # ==============================
 
     forecast_7 = []
+    dates_7 = []
 
     for d in range(7):
         date = last_date + datetime.timedelta(days=d+1)
@@ -245,11 +242,14 @@ def generate_forecast_outputs(df, feature_cols, target_scaler, model):
             "load_mw": float(avg)
         })
 
+        dates_7.append(date)
+    
     # ==============================
     # 30 DAYS FORECAST
     # ==============================
 
     forecast_30 = []
+    dates_30 = []
 
     for d in range(30):
         date = last_date + datetime.timedelta(days=d+1)
@@ -261,22 +261,45 @@ def generate_forecast_outputs(df, feature_cols, target_scaler, model):
             "load_mw": float(avg)
         })
 
+        dates_30.append(date)
+
+    # ==============================
+    # Convert hourly predictions to daily values
+    # ==============================
+
+    daily_7 = []
+    for d in range(7):
+        avg = p50_7d[d*24:(d+1)*24].mean()
+        daily_7.append(avg)
+
+    daily_30 = []
+    for d in range(30):
+        avg = p50_30d[d*24:(d+1)*24].mean()
+        daily_30.append(avg)
+
+    # ==============================
+    # Explanations
+    # ==============================
+
     explanations = {
+
         "24H": {
-            "trend": dynamic_summary(p50_24[:24], "24H"),
+            "trend": dynamic_summary(p50_24[:24], "24H", future_times),
             "academic": academic_explanation(p50_24[:24], "24H"),
             "attention": attention_explanation(attention, "24H"),
             "features": feature_explanation(feature_cols)
         },
+
         "7D": {
-            "trend": dynamic_summary(p50_7d, "7D"),
-            "academic": academic_explanation(p50_7d, "7D"),
+            "trend": dynamic_summary(daily_7, "7D", dates_7),
+            "academic": academic_explanation(daily_7, "7D"),
             "attention": attention_explanation(attention, "7D"),
             "features": feature_explanation(feature_cols)
         },
+
         "30D": {
-            "trend": dynamic_summary(p50_30d, "30D"),
-            "academic": academic_explanation(p50_30d, "30D"),
+            "trend": dynamic_summary(daily_30, "30D", dates_30),
+            "academic": academic_explanation(daily_30, "30D"),
             "attention": attention_explanation(attention, "30D"),
             "features": feature_explanation(feature_cols)
         }

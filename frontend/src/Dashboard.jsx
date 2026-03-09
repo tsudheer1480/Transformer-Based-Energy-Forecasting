@@ -4,7 +4,6 @@ import { Disclosure } from "@headlessui/react";
 
 export default function Dashboard() {
 
-
 // ====================== STATE VARIABLES ======================
 
 // uploaded CSV
@@ -19,6 +18,9 @@ const [data,setData]=useState(null)
 // loading indicator
 const [loading,setLoading]=useState(false)
 
+// progress for liquid loader
+const [progress,setProgress]=useState(0)
+
 // active tab (24h / 7d / 30d)
 const [activeTab,setActiveTab]=useState("24h")
 
@@ -28,8 +30,6 @@ const [search,setSearch]=useState("")
 // sorting
 const [sortKey,setSortKey]=useState(null)
 const [sortState,setSortState]=useState(null) // asc desc null
-
-
 
 // ====================== RUN MODEL ======================
 
@@ -44,13 +44,30 @@ formData.append("mode",mode)
 try{
 
 setLoading(true)
+setProgress(5)
+
+// simulated progress animation
+const progressInterval = setInterval(()=>{
+setProgress(p=>{
+if(p < 90) return p + 2
+return p
+})
+},800)
 
 const res = await axios.post(
-"https://energy-forecast-api-sfrz.onrender.com/run_model",
+"http://127.0.0.1:8000/run_model",
 formData
 )
 
+clearInterval(progressInterval)
+
+setProgress(100)
+
+setTimeout(()=>{
 setData(res.data)
+setLoading(false)
+setProgress(0)
+},800)
 
 }catch(err){
 
@@ -62,15 +79,11 @@ else{
 alert("Server Error")
 }
 
-}finally{
-
 setLoading(false)
 
 }
 
 }
-
-
 
 // ====================== GET FORECAST ======================
 
@@ -84,8 +97,6 @@ if(activeTab==="7d") return data["7d_forecast"]||[]
 return data["30d_forecast"]||[]
 
 }
-
-
 
 // ====================== SORT FUNCTION ======================
 
@@ -110,8 +121,6 @@ setSortState("asc")
 
 }
 
-
-
 // ====================== EXPORT CSV ======================
 
 const exportCSV = ()=>{
@@ -134,8 +143,6 @@ a.download="forecast.csv"
 a.click()
 
 }
-
-
 
 // ====================== FILTER + SORT ======================
 
@@ -172,17 +179,15 @@ return rows
 
 },[data,activeTab,search,sortKey,sortState])
 
-
 // ====================== GRAPH ======================
 
 const getGraph = ()=>{
 
 if(!data) return ""
 
-return "https://energy-forecast-api-sfrz.onrender.com"+data.graphs?.[activeTab]
+return "http://127.0.0.1:8000"+data.graphs?.[activeTab]
 
 }
-
 
 // ====================== EXPLANATIONS ======================
 
@@ -199,13 +204,135 @@ return data?.explanations?.[horizon]?.[key]
 
 }
 
+// ====================== LIGHTNING EFFECT ======================
 
+const createLightning = (e)=>{
+
+const canvas = document.createElement("canvas")
+canvas.className="lightningCanvas"
+
+canvas.width = window.innerWidth
+canvas.height = window.innerHeight
+
+document.body.appendChild(canvas)
+
+const ctx = canvas.getContext("2d")
+
+const startX = e.clientX
+const startY = 0
+const endY = e.clientY
+
+function drawBolt(x,y,maxY,branch){
+
+ctx.beginPath()
+ctx.moveTo(x,y)
+
+let currentX = x
+let currentY = y
+
+while(currentY < maxY){
+
+currentX += (Math.random()-0.5)*30
+currentY += Math.random()*25
+
+ctx.lineTo(currentX,currentY)
+
+if(branch && Math.random() > 0.85){
+
+drawBolt(currentX,currentY,currentY+40,false)
+
+}
+
+}
+
+ctx.stroke()
+
+}
+
+ctx.strokeStyle = "rgba(200,220,255,0.9)"
+ctx.lineWidth = 2
+ctx.shadowBlur = 20
+ctx.shadowColor = "#818cf8"
+
+drawBolt(startX,startY,endY,true)
+
+
+
+/* screen flash */
+
+const flash = document.createElement("div")
+flash.className="lightningFlash"
+document.body.appendChild(flash)
+
+
+
+/* ripple energy */
+
+const ripple = document.createElement("div")
+ripple.className="energyRipple"
+
+ripple.style.left = e.clientX+"px"
+ripple.style.top = e.clientY+"px"
+
+document.body.appendChild(ripple)
+
+
+
+/* optional thunder sound */
+
+// new Audio("/thunder.mp3").play()
+
+
+
+setTimeout(()=>{
+canvas.remove()
+flash.remove()
+ripple.remove()
+},150)
+
+}
 // ====================== UI ======================
 
 return(
 
-<div className="min-h-screen bg-gray-900 text-gray-200 p-6">
+<div className="min-h-screen bg-gray-900 text-gray-200 p-6" 
+    onClick={createLightning}>
+        
+<div className="energyBackground"></div>
+{/* ================= LOADER ================= */}
 
+{loading && (
+
+<div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+
+<div className="loader-container">
+
+<div className="liquid-circle">
+
+<div 
+className="water"
+style={{transform:`translateY(${100-progress}%)`}}
+>
+
+<div className="bubble b1"></div>
+<div className="bubble b2"></div>
+<div className="bubble b3"></div>
+
+</div>
+
+<div className="percent">{progress}%</div>
+
+</div>
+
+<p className="mt-4 text-sm text-gray-300">
+⚡ Running Energy Forecast Model...
+</p>
+
+</div>
+
+</div>
+
+)}
 
 {/* ================= TITLE ================= */}
 
@@ -213,12 +340,9 @@ return(
 ⚡ Energy Load Forecast Dashboard
 </h1>
 
-
-
 {/* ================= UPLOAD PANEL ================= */}
 
 <div className="bg-gray-800 p-4 rounded-lg flex gap-3 flex-wrap justify-center">
-
 
 <input
 type="file"
@@ -227,27 +351,26 @@ onChange={(e)=>setFile(e.target.files[0])}
 className="bg-gray-700 text-sm p-2 rounded"
 />
 
-
 <select
 value={mode}
 onChange={(e)=>setMode(e.target.value)}
 className="bg-gray-700 text-sm p-2 rounded"
+
 >
+
 <option value="forecast">Forecast</option>
 <option value="evaluate">Evaluate</option>
 </select>
 
-
 <button
 onClick={runModel}
 className="bg-indigo-600 px-4 py-2 text-sm rounded hover:bg-indigo-700 transition"
+
 >
-{loading?"Running...":"Run Model"}
-</button>
+
+{loading?"Running...":"Run Model"} </button>
 
 </div>
- 
-
 
 {/* ================= EVALUATION METRICS ================= */}
 
@@ -271,8 +394,6 @@ className="bg-indigo-600 px-4 py-2 text-sm rounded hover:bg-indigo-700 transitio
 </div>
 
 )}
-
-
 
 {/* SHOW RESULTS ONLY AFTER RUN MODEL */}
 
@@ -303,6 +424,7 @@ onClick={()=>setActiveTab(tab)}
 className={`px-4 py-1 rounded ${
 activeTab===tab ? "bg-indigo-600 hover:bg-indigo-700 transition" : "bg-gray-700 hover:bg-gray-600 transition"
 }`}
+
 >
 
 {tab.toUpperCase()}
@@ -312,8 +434,6 @@ activeTab===tab ? "bg-indigo-600 hover:bg-indigo-700 transition" : "bg-gray-700 
 ))}
 
 </div>
-
-
 
 {/* ================= FORECAST TABLE ================= */}
 
@@ -336,9 +456,10 @@ className="bg-gray-700 text-xs px-2 py-1 rounded hover:bg-gray-600 transition"
 <button
 onClick={exportCSV}
 className="bg-indigo-600 px-3 py-1 text-xs rounded hover:bg-indigo-700 transition"
+
 >
-Export CSV
-</button>
+
+Export CSV </button>
 
 </div>
 
@@ -352,6 +473,7 @@ Export CSV
 
 {activeTab==="24h" ? (
 <>
+
 <th className="py-2 text-center  ">Time</th>
 
 <th
@@ -396,13 +518,15 @@ className="border-b border-gray-700 hover:bg-gray-700 cursor-pointer transition"
 {activeTab==="24h" ? (
 
 <>
+
 <td className="py-2 text-center">{row.time}</td>
 <td className="py-2 text-center">{row.load_mw.toFixed(4)}</td>
 </>
 
-):( 
+):(
 
 <>
+
 <td className="py-2 text-center">{row.date}</td>
 <td className="py-2 text-center">{row.day}</td>
 <td className="py-2 text-center">{row.load_mw.toFixed(4)}</td>
@@ -424,8 +548,6 @@ className="border-b border-gray-700 hover:bg-gray-700 cursor-pointer transition"
 
 </div>
 
-
-
 {/* ================= GRAPH ================= */}
 
 <div className="bg-gray-800 p-4 mt-4 rounded-lg ">
@@ -440,8 +562,6 @@ className="w-full h-[400px] hover:bg-pink-300 rounded-lg transition-colors"
 />
 
 </div>
-
-
 
 {/* ================= EXPLANATIONS ================= */}
 
