@@ -1,10 +1,44 @@
 import { useState, useMemo } from "react";
 import axios from "axios";
-import { Disclosure } from "@headlessui/react";
-
+import { Disclosure, Transition } from "@headlessui/react";
 export default function Dashboard() {
 
 // ====================== STATE VARIABLES ======================
+const rows = 10
+const cols = 14
+
+const dots = []
+
+for(let r=0;r<rows;r++){
+  for(let c=0;c<cols;c++){
+
+    const size = Math.random()*3 + 2
+
+    const left = (c/(cols-1))*100 + (Math.random()*2 - 1)
+    const top  = (r/(rows-1))*100 + (Math.random()*2 - 1)
+
+    const duration = Math.random()*20 + 15
+    const delay = Math.random()*20
+
+    dots.push(
+
+      <div
+        key={r+"-"+c}
+        className="energyDot"
+        style={{
+          left:left+"%",
+          top:top+"%",
+          width:size+"px",
+          height:size+"px",
+          animationDuration:duration+"s",
+          animationDelay:delay+"s"
+        }}
+      />
+
+    )
+
+  }
+}
 
 // uploaded CSV
 const [file,setFile]=useState(null)
@@ -31,6 +65,8 @@ const [search,setSearch]=useState("")
 const [sortKey,setSortKey]=useState(null)
 const [sortState,setSortState]=useState(null) // asc desc null
 
+const [fade,setFade] = useState("fadeIn")
+
 // ====================== RUN MODEL ======================
 
 const runModel = async ()=>{
@@ -55,7 +91,7 @@ return p
 },800)
 
 const res = await axios.post(
-"https://energy-forecast-api-sfrz.onrender.com/run_model",
+" http://127.0.0.1:8000/run_model",
 formData
 )
 
@@ -185,7 +221,7 @@ const getGraph = ()=>{
 
 if(!data) return ""
 
-return "https://energy-forecast-api-sfrz.onrender.com/run_model"+data.graphs?.[activeTab]
+return "http://127.0.0.1:8000"+data.graphs?.[activeTab]
 
 }
 
@@ -295,37 +331,33 @@ ripple.remove()
 
 return(
 
-<div className="min-h-screen bg-gray-900 text-gray-200 p-6" 
+<div className="min-h-screen flex flex-col text-gray-200 pt-16 px-6" 
     onClick={createLightning}>
-        
-<div className="energyBackground"></div>
+
+<div className="flex-grow">
 {/* ================= LOADER ================= */}
 
 {loading && (
 
-<div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+<div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50">
 
-<div className="loader-container">
+<div className="flex flex-col items-center">
 
-<div className="liquid-circle">
+<div className="loader-glow">
 
-<div 
-className="water"
-style={{transform:`translateY(${100-progress}%)`}}
->
-
-<div className="bubble b1"></div>
-<div className="bubble b2"></div>
-<div className="bubble b3"></div>
-
-</div>
-
-<div className="percent">{progress}%</div>
+<img
+src="/lightning.png"
+className="w-24 h-24 object-contain loader-color"
+/>
 
 </div>
 
 <p className="mt-4 text-sm text-gray-300">
-⚡ Running Energy Forecast Model...
+Running Energy Forecast Model...
+</p>
+
+<p className="text-sm text-gray-400 mt-1 text-center max-w-md">
+If server error at first time don't worry - First request may take ~1 minute to wake up server
 </p>
 
 </div>
@@ -336,25 +368,31 @@ style={{transform:`translateY(${100-progress}%)`}}
 
 {/* ================= TITLE ================= */}
 
-<h1 className="text-2xl font-bold mb-6 text-center">
-⚡ Energy Load Forecast Dashboard
+<h1 className="text-3xl font-semibold tracking-wide mb-6 text-center flex items-center justify-center gap-3">
+
+<img
+src="/energy.gif"
+className="w-8 h-8 mix-blend-screen"
+/>
+
+Energy Load Forecast Dashboard
+
 </h1>
 
 {/* ================= UPLOAD PANEL ================= */}
 
-<div className="bg-gray-800 p-4 rounded-lg flex gap-3 flex-wrap justify-center">
-
+<div className="p-4 rounded-xl flex gap-3 flex-wrap justify-center ">
 <input
 type="file"
 accept=".csv"
 onChange={(e)=>setFile(e.target.files[0])}
-className="bg-gray-700 text-sm p-2 rounded"
+className="bg-gray-700/45 backdrop-blur-md text-sm p-2 rounded"
 />
 
 <select
 value={mode}
 onChange={(e)=>setMode(e.target.value)}
-className="bg-gray-700 text-sm p-2 rounded"
+className="bg-gray-700/45 backdrop-blur-md text-sm p-2 rounded"
 
 >
 
@@ -380,7 +418,7 @@ className="bg-indigo-600 px-4 py-2 text-sm rounded hover:bg-indigo-700 transitio
 
 {["24H","7D","30D"].map(p=>(
 
-<div key={p} className="bg-gray-800 p-4 rounded-lg text-center hover:bg-gray-700 transition-colors">
+<div key={p} className="bg-gray-900/50 backdrop-blur-md p-4 rounded-lg text-center hover:bg-gray-700 transition-colors">
 
 <h3 className="font-semibold mb-1">{p}</h3>
 
@@ -402,7 +440,7 @@ className="bg-indigo-600 px-4 py-2 text-sm rounded hover:bg-indigo-700 transitio
 <>
 {/* ================= LAST AVAILABLE TIME ================= */}
 
-<div className="bg-gray-800 p-3 mt-4 rounded-lg text-center text-sm w-[60%] mx-auto">
+<div className="p-3 mt-4 rounded-xl text-center text-sm w-[60%] mx-auto ">
 
 <span className="text-gray-400">Last Available Data Time: </span>
 
@@ -420,7 +458,15 @@ className="bg-indigo-600 px-4 py-2 text-sm rounded hover:bg-indigo-700 transitio
 
 <button
 key={tab}
-onClick={()=>setActiveTab(tab)}
+onClick={()=>{
+setFade("fadeOut")
+
+setTimeout(()=>{
+setActiveTab(tab)
+setFade("fadeIn")
+},200)
+
+}}   
 className={`px-4 py-1 rounded ${
 activeTab===tab ? "bg-indigo-600 hover:bg-indigo-700 transition" : "bg-gray-700 hover:bg-gray-600 transition"
 }`}
@@ -437,7 +483,7 @@ activeTab===tab ? "bg-indigo-600 hover:bg-indigo-700 transition" : "bg-gray-700 
 
 {/* ================= FORECAST TABLE ================= */}
 
-<div className="bg-gray-800 p-4 mt-4 rounded-lg w-[80%] mx-auto">
+<div className={`bg-gray-800/50 backdrop-blur-md p-4 mt-4 rounded-lg w-[80%] mx-auto fadeContent ${fade}`}>
 
 <h2 className="text-lg mb-3 text-center">
 Forecast Values ({activeTab.toUpperCase()})
@@ -480,7 +526,7 @@ Export CSV </button>
 onClick={()=>handleSort("load_mw")}
 className="py-2 text-center cursor-pointer hover:text-gray-400 transition"
 >
-Load (MW)
+Load <span className="mono">MW</span>
 {sortState==="asc" && " ▲"}
 {sortState==="desc" && " ▼"}
 </th>
@@ -494,7 +540,7 @@ Load (MW)
 onClick={()=>handleSort("load_mw")}
 className="py-2 text-center cursor-pointer hover:text-indigo-400 transition"
 >
-Load (MW)
+Load <span className="mono">MW</span>
 {sortState==="asc" && " ▲"}
 {sortState==="desc" && " ▼"}
 </th>
@@ -550,36 +596,42 @@ className="border-b border-gray-700 hover:bg-gray-700 cursor-pointer transition"
 
 {/* ================= GRAPH ================= */}
 
-<div className="bg-gray-800 p-4 mt-4 rounded-lg ">
-
+<div className={`bg-gray-800/50 backdrop-blur-md p-4 mt-4 rounded-lg fadeContent ${fade}`}>
 <h2 className="text-lg mb-2 text-center">
 Forecast Graph
 </h2>
 
 <iframe
 src={getGraph()}
-className="w-full h-[400px] hover:bg-pink-300 rounded-lg transition-colors"
+className="w-full h-[450px] hover:bg-indigo-400 rounded-lg transition-colors"
 />
 
 </div>
 
 {/* ================= EXPLANATIONS ================= */}
 
-<div className="mt-4 space-y-3">
+<div className={`mt-4 space-y-3 fadeContent ${fade}`} key={activeTab}>
 
 {["trend","academic","attention","features"].map(section=>(
 
 <Disclosure key={section}>
 
-<div className="bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
+<div className="bg-gray-800/50 backdrop-blur-md rounded-lg hover:bg-gray-700 transition-colors overflow-hidden">
+<Disclosure.Button className="w-full px-4 py-2 text-left text-sm font-semibold transition-all duration-300 hover:text-indigo-400 hover:pl-5">{section.toUpperCase()}
 
-<Disclosure.Button className="w-full px-4 py-2 text-left text-sm font-semibold">
-{section.toUpperCase()}
 </Disclosure.Button>
 
-<Disclosure.Panel className="px-4 pb-3 text-xs whitespace-pre-line text-gray-400">
-{getExplanation(section)}
+<Transition
+enter="transition-all duration-500 ease-out"
+enterFrom="opacity-0 -translate-y-3 scale-95"
+enterTo="opacity-100 translate-y-0 scale-100"
+leave="transition-all duration-300 ease-in"
+leaveFrom="opacity-100 translate-y-0 scale-100"
+leaveTo="opacity-0 -translate-y-2 scale-95"
+>
+<Disclosure.Panel className="px-5 pb-4 text-sm leading-relaxed text-gray-300 font-light whitespace-pre-line">{getExplanation(section)}
 </Disclosure.Panel>
+</Transition>
 
 </div>
 
@@ -592,9 +644,29 @@ className="w-full h-[400px] hover:bg-pink-300 rounded-lg transition-colors"
 </>
 
 )}
+</div>
+{/* ================= FOOTER ================= */}
+<footer className="w-full border-t border-gray-700 py-2 flex justify-center items-center gap-10 text-sm text-gray-400">
+<a
+href="/about.html"
+target="_blank"
+className="hover:text-white transition"
+>
+About
+</a>
 
+<a
+href="/contact.html"
+target="_blank"
+className="hover:text-white transition"
+>
+Contact Us
+</a>
+
+</footer>
 </div>
 
 )
 
 }
+

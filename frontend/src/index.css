@@ -2,93 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-.loader-container{
+:root{
+--loader-color:#7a7bd6;   /* change this anytime */
+}
+
+body{
+margin:0;
+padding:0;
+background:#111827;
+font-family: "Inter", system-ui, sans-serif;
+letter-spacing:0.2px;
+}
+
+.mono{
+font-family: "JetBrains Mono", monospace;
+color:#5be4dd;
+}
+
+.loader-img{
+background:transparent !important;
+image-rendering:auto;
+}
+
+
+.loader-glow{
 display:flex;
-flex-direction:column;
 align-items:center;
-}
+justify-content:center;
 
-.liquid-circle{
-width:180px;
-height:180px;
+padding:18px;
 border-radius:50%;
-border:4px solid #6366f1;
-overflow:hidden;
-position:relative;
-background:#111;
+
+/* soft glow halo */
+
+box-shadow:
+0 0 30px rgba(99,102,241,0.6),
+0 0 80px rgba(99,102,241,0.25);
 }
 
-.water{
-position:absolute;
-bottom:0;
-width:100%;
-height:100%;
-background:linear-gradient(
-180deg,
-#6366f1,
-#4f46e5
-);
-transition:transform .6s ease;
+
+.loader-color{
+filter:
+invert(60%)
+sepia(40%)
+saturate(600%)
+hue-rotate(210deg)
+brightness(110%);
 }
 
-.percent{
-position:absolute;
-top:50%;
-left:50%;
-transform:translate(-50%,-50%);
-font-weight:bold;
-font-size:22px;
-color:white;
-z-index:10;
-}
+.loader-color{
 
-.bubble{
-position:absolute;
-bottom:-20px;
-background:white;
-border-radius:50%;
-opacity:.6;
-animation:rise 4s infinite ease-in;
-}
-
-.b1{
-width:8px;
-height:8px;
-left:30%;
-animation-delay:0s;
-}
-
-.b2{
-width:6px;
-height:6px;
-left:55%;
-animation-delay:1s;
-}
-
-.b3{
-width:10px;
-height:10px;
-left:70%;
-animation-delay:2s;
-}
-
-@keyframes rise{
-
-0%{
-transform:translateY(0);
-opacity:0
-}
-
-50%{
-opacity:.7
-}
-
-100%{
-transform:translateY(-160px);
-opacity:0
-}
+filter:
+drop-shadow(0 0 6px var(--loader-color))
+drop-shadow(0 0 14px var(--loader-color))
+drop-shadow(0 0 28px var(--loader-color));
 
 }
+
 
 /* ================= LIGHTNING CANVAS ================= */
 
@@ -168,101 +138,140 @@ opacity:0;
 }
 
 }
-
-/* ================= ENERGY GRID BACKGROUND ================= */
+/* ================= BACKGROUND ================= */
 
 .energyBackground{
 
 position:fixed;
 top:0;
 left:0;
+width:100%;
+height:100%;
+z-index:-2;
 
+/* darker base */
+
+background:
+radial-gradient(circle at 20% 40%, rgba(99,102,241,0.25), transparent 50%),
+radial-gradient(circle at 80% 60%, rgba(59,130,246,0.25), transparent 50%),
+linear-gradient(180deg,#010409,#020617,#0f172a);
+
+/* bigger background for larger motion */
+
+background-size:350% 350%;
+
+/* faster animation */
+
+animation: energyMove 30s ease-in-out infinite;
+
+}
+
+
+/* smooth continuous motion */
+
+@keyframes energyMove{
+
+0%{
+background-position:0% 50%;
+}
+
+25%{
+background-position:100% 60%;
+}
+
+50%{
+background-position:80% 100%;
+}
+
+75%{
+background-position:30% 80%;
+}
+
+100%{
+background-position:0% 50%;
+}
+
+}
+
+
+/* ================= FLOATING DOTS ================= */
+
+.energyDots{
+
+position:fixed;
+top:0;
+left:0;
 width:100%;
 height:100%;
 
 pointer-events:none;
 
-z-index:0;
+z-index:-1;
 
-background:
-
-linear-gradient(
-rgba(99,102,241,0.08) 1px,
-transparent 1px
-),
-
-linear-gradient(
-90deg,
-rgba(99,102,241,0.08) 1px,
-transparent 1px
-);
-
-background-size:60px 60px;
-
-animation:gridMove 12s linear infinite;
+overflow:hidden;
 
 }
 
-
-
-/* moving grid effect */
-
-@keyframes gridMove{
-
-0%{
-transform:translateY(0);
-}
-
-100%{
-transform:translateY(60px);
-}
-
-}
-
-
-
-/* glowing energy nodes */
-
-.energyBackground::after{
-
-content:"";
+.energyDot{
 
 position:absolute;
 
-width:100%;
-height:100%;
+/* slightly bigger */
 
-background:
+width:4px;
+height:4px;
 
-radial-gradient(circle at 20% 30%, #6366f1 2px, transparent 4px),
-radial-gradient(circle at 70% 50%, #818cf8 2px, transparent 4px),
-radial-gradient(circle at 40% 80%, #6366f1 2px, transparent 4px),
-radial-gradient(circle at 80% 20%, #818cf8 2px, transparent 4px);
+/* brighter */
 
-background-size:200px 200px;
+background:#818cf8;
 
-animation:nodePulse 6s ease-in-out infinite;
+border-radius:50%;
 
-opacity:.5;
+opacity:.9;
+
+/* soft glow */
+
+box-shadow:0 0 6px #6366f1;
+
+animation: floatDot 22s ease-in-out infinite;
 
 }
 
 
+/* smooth floating motion */
 
-/* node glow animation */
+@keyframes floatDot{
 
-@keyframes nodePulse{
+0%{transform:translate(0px,0px);}
 
-0%{
-opacity:.3;
+25%{transform:translate(25px,-20px);}
+
+50%{transform:translate(-20px,15px);}
+
+75%{transform:translate(20px,25px);}
+
+100%{transform:translate(0px,0px);}
+
 }
 
-50%{
-opacity:.7;
+/* smooth content transition */
+
+.fadeContent{
+transition:opacity .45s cubic-bezier(0.4,0,0.2,1),
+transform .45s cubic-bezier(0.4,0,0.2,1);
+will-change: opacity, transform;
 }
 
-100%{
-opacity:.3;
+.fadeOut{
+opacity:0;
+transform:translateY(12px) scale(.98);
 }
 
+.fadeIn{
+opacity:1;
+transform:translateY(0) scale(1);
+} 
+
+iframe{
+transition:opacity .4s ease;
 }
