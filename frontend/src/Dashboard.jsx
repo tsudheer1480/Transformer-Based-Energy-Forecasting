@@ -91,7 +91,7 @@ return p
 },800)
 
 const res = await axios.post(
-" http://127.0.0.1:8000/run_model",
+"https://energy-forecast-api-sfrz.onrender.com/run_model",
 formData
 )
 
@@ -221,7 +221,7 @@ const getGraph = ()=>{
 
 if(!data) return ""
 
-return "http://127.0.0.1:8000"+data.graphs?.[activeTab]
+return "https://energy-forecast-api-sfrz.onrender.com"+data.graphs?.[activeTab]
 
 }
 
