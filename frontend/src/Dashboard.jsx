@@ -1,6 +1,9 @@
 import { useState, useMemo } from "react";
 import axios from "axios";
 import { Disclosure, Transition } from "@headlessui/react";
+import About from "./About"
+import Contact from "./Contact"
+
 export default function Dashboard() {
 
 // ====================== STATE VARIABLES ======================
@@ -66,6 +69,9 @@ const [sortKey,setSortKey]=useState(null)
 const [sortState,setSortState]=useState(null) // asc desc null
 
 const [fade,setFade] = useState("fadeIn")
+
+const [showAbout,setShowAbout] = useState(false)
+const [showContact,setShowContact] = useState(false)
 
 // ====================== RUN MODEL ======================
 
@@ -176,6 +182,22 @@ const url=URL.createObjectURL(blob)
 const a=document.createElement("a")
 a.href=url
 a.download="forecast.csv"
+a.click()
+
+}
+// ====================== DOWNLOAD GRAPHS ====================
+
+const downloadGraph = () => {
+
+const graphUrl = getGraph()
+
+if(!graphUrl) return
+
+const a = document.createElement("a")
+a.href = graphUrl
+a.download = `forecast_${activeTab}.html`
+a.target = "_blank"
+
 a.click()
 
 }
@@ -347,7 +369,7 @@ return(
 
 <img
 src="/lightning.png"
-className="w-24 h-24 object-contain loader-color"
+className="w-22 h-22 object-contain loader-color"
 />
 
 </div>
@@ -357,7 +379,7 @@ Running Energy Forecast Model...
 </p>
 
 <p className="text-sm text-gray-400 mt-1 text-center max-w-md">
-If server error at first time don't worry - First request may take ~1 minute to wake up server
+<span className="text-red-400">Server Error</span> occurs at first time <span className="text-yellow-400">don't worry</span> - First request may take ~ 1-2 minutes to wake up server
 </p>
 
 </div>
@@ -372,9 +394,8 @@ If server error at first time don't worry - First request may take ~1 minute to 
 
 <img
 src="/energy.gif"
-className="w-8 h-8 mix-blend-screen"
+className="w-18 energy-iconColor"
 />
-
 Energy Load Forecast Dashboard
 
 </h1>
@@ -597,13 +618,23 @@ className="border-b border-gray-700 hover:bg-gray-700 cursor-pointer transition"
 {/* ================= GRAPH ================= */}
 
 <div className={`bg-gray-800/50 backdrop-blur-md p-4 mt-4 rounded-lg fadeContent ${fade}`}>
-<h2 className="text-lg mb-2 text-center">
+<div className="flex justify-between items-center mb-2">
+
+<h2 className="text-lg">
 Forecast Graph
 </h2>
 
+<button
+onClick={downloadGraph}
+className="bg-indigo-600 px-3 py-1 text-xs rounded hover:bg-indigo-700 transition"
+>
+Download Graph
+</button>
+
+</div>
 <iframe
 src={getGraph()}
-className="w-full h-[450px] hover:bg-indigo-400 rounded-lg transition-colors"
+className="w-full h-[450px] hover:bg-indigo-500 rounded-lg transition-colors"
 />
 
 </div>
@@ -645,23 +676,63 @@ leaveTo="opacity-0 -translate-y-2 scale-95"
 
 )}
 </div>
+
+{/* ABOUT PANEL */}
+{showAbout && (
+<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end">
+
+<div className="w-[420px] h-full bg-gray-900 border-l border-gray-700 animate-slidePanel relative">
+
+<button
+onClick={()=>setShowAbout(false)}
+className="absolute top-5 right-6 text-gray-400 hover:text-white"
+>
+✕
+</button>
+
+<About/>
+
+</div>
+
+</div>
+)}
+
+{/* CONTACT PANEL */}
+{showContact && (
+<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end">
+
+<div className="w-[380px] h-full bg-gray-900 border-l border-gray-700 animate-slidePanel relative">
+
+<button
+onClick={()=>setShowContact(false)}
+className="absolute top-5 right-6 text-gray-400 hover:text-white"
+>
+✕
+</button>
+
+<Contact/>
+
+</div>
+
+</div>
+)}
+
 {/* ================= FOOTER ================= */}
-<footer className="w-full border-t border-gray-700 py-2 flex justify-center items-center gap-10 text-sm text-gray-400">
-<a
-href="/about.html"
-target="_blank"
+<footer className="w-full border-t border-gray-700 py-3 flex justify-center items-center gap-10 text-sm text-gray-400">
+
+<button
+onClick={()=>setShowAbout(true)}
 className="hover:text-white transition"
 >
 About
-</a>
+</button>
 
-<a
-href="/contact.html"
-target="_blank"
+<button
+onClick={()=>setShowContact(true)}
 className="hover:text-white transition"
 >
-Contact Us
-</a>
+Contact
+</button>
 
 </footer>
 </div>

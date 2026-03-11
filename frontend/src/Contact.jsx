@@ -1,37 +1,68 @@
-import { Link } from "react-router-dom"
+import { EnvelopeIcon } from "@heroicons/react/24/outline"
+import { CodeBracketIcon } from "@heroicons/react/24/outline"
 
 export default function Contact(){
 
 return(
 
-<div className="min-h-screen bg-gray-900 text-gray-200 p-10">
+<div className="p-8 text-gray-300 overflow-y-auto h-full">
 
-<h1 className="text-3xl font-bold mb-6">
+<h2 className="text-2xl font-semibold mb-6 text-white">
 Contact
-</h1>
+</h2>
 
-<p className="text-gray-400">
-
-Developer: <b>Sudheer Tantapureddy</b>
-
+<p className="text-sm mb-6">
+Developer:
+<span className="text-white font-semibold ml-2">
+Sudheer Tantapureddy
+</span>
 </p>
 
-<p className="text-gray-400 mt-2">
-Email: yourmail@example.com
-</p>
+{/* EMAIL */}
 
-<p className="text-gray-400 mt-2">
-GitHub: https://github.com/yourgithub
-</p>
+<div className="flex items-center gap-3 mb-5">
 
-<Link
-to="/"
-className="inline-block mt-6 text-indigo-400 hover:text-indigo-300"
+<EnvelopeIcon className="w-5 h-5 text-indigo-400"/>
+
+<a
+href="mailto:tsudheer1480@gmail.com"
+className="text-indigo-400 hover:text-indigo-300 transition underline text-sm"
 >
 
-← Back to Dashboard
+tsudheer1480@gmail.com
 
-</Link>
+</a>
+
+</div>
+
+{/* GITHUB */}
+
+<div className="flex items-center gap-3 mb-5">
+
+<CodeBracketIcon className="w-5 h-5 text-indigo-400"/>
+
+<a
+href="https://github.com/tsudheer1480"
+target="_blank"
+rel="noopener noreferrer"
+className="text-indigo-400 hover:text-indigo-300 transition underline text-sm"
+>
+
+github.com/tsudheer1480
+
+</a>
+
+</div>
+
+{/* MESSAGE */}
+
+<p className="text-sm text-gray-400 mt-6 leading-relaxed">
+
+If you have questions, suggestions, or collaboration opportunities
+related to AI, machine learning, or energy forecasting systems,
+feel free to reach out through email or GitHub.
+
+</p>
 
 </div>
 
