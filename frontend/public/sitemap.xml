@@ -3,9 +3,17 @@
 
 <url>
 <loc>https://transformer-based-energy-forecastin.vercel.app/</loc>
-<lastmod>2026-03-11</lastmod>
-<changefreq>Monthly</changefreq>
 <priority>1.0</priority>
+</url>
+
+<url>
+<loc>https://transformer-based-energy-forecastin.vercel.app/about</loc>
+<priority>0.8</priority>
+</url>
+
+<url>
+<loc>https://transformer-based-energy-forecastin.vercel.app/contact</loc>
+<priority>0.8</priority>
 </url>
 
 </urlset>

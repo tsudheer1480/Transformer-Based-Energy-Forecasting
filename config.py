@@ -5,8 +5,8 @@ DATA_PATH = r"data/processed/final_energy_forecasting_dataset.csv"
 TIME_COL = "time"
 TARGET_COL = "load"
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-print("Using device:", DEVICE)
+DEVICE = "cpu"
+# print("Using device:", DEVICE)
 
 LOOKBACK = 720
 

@@ -22,7 +22,7 @@ def plot_future_forecast(start_time,
         x_values = pd.date_range(
             start=start_time + pd.Timedelta(hours=1),
             periods=len(predictions),
-            freq="H"
+            freq="h"
         )
 
         xaxis_config = dict(

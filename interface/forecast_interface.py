@@ -186,8 +186,7 @@ def generate_forecast_outputs(df, feature_cols, target_scaler):
     print("\n", feature_explanation(feature_cols))
 
 
-def generate_forecast_outputs(df, feature_cols, target_scaler, model):
-
+def generate_forecast_outputs(df, feature_cols, target_scaler, model, feature_importance=None):
     if len(df) < LOOKBACK:
         return None
 

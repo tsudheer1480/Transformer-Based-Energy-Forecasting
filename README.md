@@ -7,6 +7,37 @@ The system compares traditional statistical models with modern Transformer archi
 
 ---
 
+## 🌐 Live Application
+
+### 🖥️ Frontend Dashboard
+Interactive AI Energy Forecasting Dashboard:
+
+🔗 https://transformer-based-energy-forecastin.vercel.app/
+
+The dashboard allows users to:
+
+- Upload energy datasets
+- Run forecasting models
+- Visualize prediction results
+- Explore forecast graphs and model outputs
+
+---
+
+### ⚙️ Backend API
+FastAPI service powering the forecasting engine:
+
+🔗 https://energy-forecast-api-sfrz.onrender.com
+
+The backend handles:
+
+- Dataset processing
+- Data validation and preprocessing
+- Model inference
+- Forecast generation
+- Returning prediction results to the frontend
+
+---
+
 ## 🎯 Objectives
 
 - Forecast multi-step future energy load
@@ -46,9 +77,35 @@ The dataset includes:
 - Holiday Indicators
 - Lag Features
 
-Data is preprocessed with normalization and lag-based feature engineering.
+Data preprocessing includes:
+
+- Normalization
+- Feature scaling
+- Lag feature generation
+- Time-based feature engineering
 
 ---
+
+# 🏗 System Architecture
+```
+               User
+                │
+                ▼
+        React Frontend (Vercel)
+                │
+                ▼
+        FastAPI Backend (Render)
+                │
+                ▼
+    Transformer Forecasting Model
+                │
+                ▼
+    Prediction Results + Forecast Graphs
+                │
+                ▼
+     Interactive Dashboard Visualization
+```
+
 
 ## 📁 Project Structure
 
@@ -57,7 +114,27 @@ energy_forecasting/
 │
 ├── config.py                   # Global configuration settings
 ├── main.py                     # Main execution pipeline
-│
+|
+├── backend/                      # FastAPI backend service
+│   ├── api.py                    # Main API endpoint
+│   ├── static/                   # Generated forecast graphs
+│   └── requirements.txt          # Backend dependencies
+|
+├── frontend/                     # React forecasting dashboard
+│   ├── public/
+│   ├── src/
+│   │   ├── components/           # UI components
+│   │   ├── About.jsx
+│   │   ├── Contact.jsx
+│   │   ├── Dashboard.jsx         # Main dashboard interface
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── index.css
+│   │
+│   ├── index.html
+│   ├── package.json
+│   └── tailwind.config.js
+|
 ├── data/
 │   └── processed/
 │       └── final_energy_forecasting_dataset.csv
@@ -95,6 +172,65 @@ energy_forecasting/
 
 ---
 
+# ⚙️ Backend (FastAPI)
+
+The backend service is built using **FastAPI** and handles communication between the dashboard and forecasting models.
+
+### Backend Responsibilities
+
+- Accept dataset uploads
+- Perform preprocessing and validation
+- Run trained forecasting models
+- Generate predictions
+- Create forecast visualization graphs
+- Return results to the frontend
+
+### Run Backend Locally
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn api:app --reload
+```
+---
+### Backend runs at (Locally):
+```
+http://127.0.0.1:8000
+```
+
+---
+
+### 🎨 Frontend (React Dashboard)
+
+The frontend dashboard is built with React and TailwindCSS to provide an intuitive interface for interacting with the forecasting system.
+
+Features
+
+- Dataset upload interface
+
+- Forecast configuration options
+
+- Interactive prediction visualization
+
+- Forecast graph display
+
+- Modern responsive UI
+
+### Run Frontend Locally
+
+```
+cd frontend
+npm install
+npm run dev
+```
+### Frontend runs at:
+```
+http://localhost:5173
+```
+
+
+---
+
 ## 📈 Evaluation Metrics
 
 - MAE (Mean Absolute Error)
@@ -106,21 +242,50 @@ energy_forecasting/
 
 ## 🛠️ Technologies Used
 
+### Machine Learning
+
 - Python
+
 - PyTorch
+
 - NumPy
+
 - Pandas
-- Matplotlib
+
 - Scikit-learn
-- Statsmodels
+
+ ### Visualization
+
+- Matplotlib
+
+- Plotly
+
+### Backend
+
+- FastAPI
+
+- Uvicorn
+
+### Frontend
+
+- React
+
+- TailwindCSS
+
+- Axios
+
+### Deployment
+
+- Vercel (Frontend Hosting)
+
+- Render (Backend API)
 
 ---
 
 ## 🚀 How to Run
-
 ### 1️⃣ Clone the Repository
 ```
-git clone https://github.com/yourusername/energy-forecasting.git
+git clone https://github.com/tsudheer1480/Transformer-Based-Energy-Forecasting.git
 cd energy-forecasting
 ```
 
@@ -167,6 +332,30 @@ Transformer-based models (TFT and Informer) outperform traditional LSTM and ARIM
 - Comparative analysis of classical vs deep learning models
 
 ---
+## 📊 Project Outputs
+
+### Dashboard Interface
+
+<p align="center">
+  <img src="screenshots/dashboard.png" width="900">
+</p>
+
+---
+
+### Energy Forecast Visualization
+
+<p align="center">
+  <img src="screenshots/forecast_plot.png" width="900">
+</p>
+
+---
+
+### Model Prediction Results
+
+<p align="center">
+  <img src="screenshots/model_summary.png" width="900">
+</p>
+
 
 ## 👨‍💻 Author
 

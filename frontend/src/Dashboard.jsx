@@ -3,13 +3,14 @@ import axios from "axios";
 import { Disclosure, Transition } from "@headlessui/react";
 import About from "./About"
 import Contact from "./Contact"
+import FeatureInfluenceChart from "./components/FeatureInfluenceChart"
 
 export default function Dashboard() {
 
 // ====================== STATE VARIABLES ======================
 const rows = 10
 const cols = 14
-
+const API_URL = "https://energy-forecast-api-sfrz.onrender.com"
 const dots = []
 
 for(let r=0;r<rows;r++){
@@ -97,7 +98,7 @@ return p
 },800)
 
 const res = await axios.post(
-"https://energy-forecast-api-sfrz.onrender.com/run_model",
+`${API_URL}/run_model`,
 formData
 )
 
@@ -237,14 +238,16 @@ return rows
 
 },[data,activeTab,search,sortKey,sortState])
 
+const maxLoad = Math.max(...processedForecast.map(r => r.load_mw))
+const minLoad = Math.min(...processedForecast.map(r => r.load_mw))
+
 // ====================== GRAPH ======================
 
 const getGraph = ()=>{
 
 if(!data) return ""
 
-return "https://energy-forecast-api-sfrz.onrender.com"+data.graphs?.[activeTab]
-
+return API_URL + data.graphs?.[activeTab]
 }
 
 // ====================== EXPLANATIONS ======================
@@ -261,6 +264,22 @@ activeTab==="24h"
 return data?.explanations?.[horizon]?.[key]
 
 }
+
+{/* ================= FEATURE INFLUENCE ================= */}
+
+{data?.feature_influence && (
+
+<div className={`bg-gray-800/50 backdrop-blur-md p-4 mt-4 rounded-lg fadeContent ${fade}`}>
+
+<h2 className="text-lg mb-3 text-center">
+Feature Influence Analysis
+</h2>
+
+<FeatureInfluenceChart features={data.feature_influence}/>
+
+</div>
+
+)}
 
 // ====================== LIGHTNING EFFECT ======================
 
@@ -587,8 +606,14 @@ className="border-b border-gray-700 hover:bg-gray-700 cursor-pointer transition"
 <>
 
 <td className="py-2 text-center">{row.time}</td>
-<td className="py-2 text-center">{row.load_mw.toFixed(4)}</td>
-</>
+<td
+className={`py-2 text-center font-semibold
+${row.load_mw === maxLoad ? "text-red-400" : ""}
+${row.load_mw === minLoad ? "text-green-400" : ""}
+`}
+>
+{row.load_mw.toFixed(4)}
+</td></>
 
 ):(
 
@@ -596,8 +621,14 @@ className="border-b border-gray-700 hover:bg-gray-700 cursor-pointer transition"
 
 <td className="py-2 text-center">{row.date}</td>
 <td className="py-2 text-center">{row.day}</td>
-<td className="py-2 text-center">{row.load_mw.toFixed(4)}</td>
-</>
+<td
+className={`py-2 text-center font-semibold
+${row.load_mw === maxLoad ? "text-red-400" : ""}
+${row.load_mw === minLoad ? "text-green-400" : ""}
+`}
+>
+{row.load_mw.toFixed(4)}
+</td></>
 
 )}
 
@@ -643,8 +674,7 @@ className="w-full h-[450px] hover:bg-indigo-500 rounded-lg transition-colors"
 
 <div className={`mt-4 space-y-3 fadeContent ${fade}`} key={activeTab}>
 
-{["trend","academic","attention","features"].map(section=>(
-
+{["trend","academic","features"].map(section=>(
 <Disclosure key={section}>
 
 <div className="bg-gray-800/50 backdrop-blur-md rounded-lg hover:bg-gray-700 transition-colors overflow-hidden">
@@ -660,7 +690,20 @@ leave="transition-all duration-300 ease-in"
 leaveFrom="opacity-100 translate-y-0 scale-100"
 leaveTo="opacity-0 -translate-y-2 scale-95"
 >
-<Disclosure.Panel className="px-5 pb-4 text-sm leading-relaxed text-gray-300 font-light whitespace-pre-line">{getExplanation(section)}
+<Disclosure.Panel className="px-5 pb-4 text-sm leading-relaxed text-gray-300 font-light whitespace-pre-line">
+
+{getExplanation(section)}
+
+{section==="features" && data?.feature_influence?.length>0 && (
+
+<div className="mt-4">
+
+<FeatureInfluenceChart features={data.feature_influence}/>
+
+</div>
+
+)}
+
 </Disclosure.Panel>
 </Transition>
 

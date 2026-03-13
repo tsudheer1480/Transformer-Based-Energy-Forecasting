@@ -15,7 +15,7 @@ from config import LOOKBACK, DEVICE
 from visualization.future_forecast_plot import plot_future_forecast
 from evaluation.evaluate_multiscale import evaluate_multiscale
 from interface.forecast_interface import generate_forecast_outputs
-
+from explainability.dynamic_feature_importance import compute_dynamic_feature_importance
 device = torch.device(DEVICE)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -34,15 +34,9 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 
 INPUT_DIM = 17
 
-model = HybridMultiTask(input_dim=INPUT_DIM)
-model.load_state_dict(torch.load(MODEL_PATH, map_location=device, weights_only=True))
-model.to(device)
-model.eval()
-
-feature_scaler = joblib.load(FEATURE_SCALER_PATH)
-target_scaler = joblib.load(TARGET_SCALER_PATH)
-
-print("Model and scalers loaded successfully.")
+model = None
+feature_scaler = None
+target_scaler = None
 
 app = FastAPI()
 
@@ -97,6 +91,25 @@ async def run_model(
     try:
 
         df = pd.read_csv(file.file)
+        global model, feature_scaler, target_scaler
+
+        if model is None:
+
+            print("Loading model...")
+
+            model = HybridMultiTask(input_dim=INPUT_DIM)
+
+            model.load_state_dict(
+                torch.load(MODEL_PATH, map_location=device, weights_only=True)
+            )
+
+            model.to(device)
+            model.eval()
+
+            feature_scaler = joblib.load(FEATURE_SCALER_PATH)
+            target_scaler = joblib.load(TARGET_SCALER_PATH)
+
+            print("Model loaded successfully.")
 
         # Minimum raw rows check
         if len(df) < 200:
@@ -132,6 +145,18 @@ async def run_model(
 
         forecast_results = generate_forecast_outputs(df,feature_cols,target_scaler,model)
 
+        feature_importance = compute_dynamic_feature_importance(
+            model,
+            df,
+            feature_cols,
+            device,
+            LOOKBACK
+        )
+
+        top_features = [
+            {"feature": f[0], "score": round(f[1],4)}
+            for f in feature_importance[:8]
+        ]
         last_time = pd.to_datetime(df["time"].iloc[-1])
 
         path_24 = plot_future_forecast(
@@ -168,6 +193,9 @@ async def run_model(
             "7d_forecast": forecast_results["forecast_7d"],
             "30d_forecast": forecast_results["forecast_30d"],
             "explanations": forecast_results["explanations"],
+
+            "feature_influence": top_features,
+
             "graphs": {
                 "24h": f"/static/{os.path.basename(path_24)}",
                 "7d": f"/static/{os.path.basename(path_7d)}",
