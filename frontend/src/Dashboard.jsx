@@ -5,12 +5,12 @@ import About from "./About"
 import Contact from "./Contact"
 import FeatureInfluenceChart from "./components/FeatureInfluenceChart"
 
+const rows = 10
+const cols = 14
 export default function Dashboard() {
 
 // ====================== STATE VARIABLES ======================
-const rows = 10
-const cols = 14
-const API_URL = "https://energy-forecast-api-sfrz.onrender.com"
+const API_URL = "https://transformer-based-energy-forecasting.onrender.com"
 const dots = []
 
 for(let r=0;r<rows;r++){
@@ -97,10 +97,9 @@ return p
 })
 },800)
 
-const res = await axios.post(
-`${API_URL}/run_model`,
-formData
-)
+const res = await axios.post(`${API_URL}/run_model`, formData, {
+timeout: 180000
+})
 
 clearInterval(progressInterval)
 
@@ -173,7 +172,7 @@ const rows=getForecast()
 let csv="Time/Date,Load(MW)\n"
 
 rows.forEach(r=>{
-const t=r.time||r.date
+const t=(r.time || r.date || "").toLowerCase()
 csv+=`${t},${r.load_mw}\n`
 })
 
@@ -238,8 +237,9 @@ return rows
 
 },[data,activeTab,search,sortKey,sortState])
 
-const maxLoad = Math.max(...processedForecast.map(r => r.load_mw))
-const minLoad = Math.min(...processedForecast.map(r => r.load_mw))
+const loads = processedForecast.map(r => r.load_mw)
+const maxLoad = loads.length ? Math.max(...loads) : 0
+const minLoad = loads.length ? Math.min(...loads) : 0
 
 // ====================== GRAPH ======================
 
@@ -286,6 +286,7 @@ Feature Influence Analysis
 const createLightning = (e)=>{
 
 const canvas = document.createElement("canvas")
+canvas.style.pointerEvents = "none"
 canvas.className="lightningCanvas"
 
 canvas.width = window.innerWidth
@@ -454,12 +455,11 @@ className="bg-indigo-600 px-4 py-2 text-sm rounded hover:bg-indigo-700 transitio
 
 {mode==="evaluate" && data?.evaluation &&(
 
-<div className="grid grid-cols-3 gap-4 mt-6 text-sm">
+<div className="grid grid-cols-3 gap-4 mt-6 text-sm ">
 
 {["24H","7D","30D"].map(p=>(
 
-<div key={p} className="bg-gray-900/50 backdrop-blur-md p-4 rounded-lg text-center hover:bg-gray-700 transition-colors">
-
+<div key={p} className="bg-white/5 p-4 rounded-lg text-center hover:bg-white/10 transition-colors">
 <h3 className="font-semibold mb-1">{p}</h3>
 
 <p>MAE: {data.evaluation[`${p}_MAE_MW`]?.toFixed(2)} MW</p>
@@ -523,9 +523,8 @@ activeTab===tab ? "bg-indigo-600 hover:bg-indigo-700 transition" : "bg-gray-700 
 
 {/* ================= FORECAST TABLE ================= */}
 
-<div className={`bg-gray-800/50 backdrop-blur-md p-4 mt-4 rounded-lg w-[80%] mx-auto fadeContent ${fade}`}>
-
-<h2 className="text-lg mb-3 text-center">
+<div className={`bg-white/5 p-4 mt-4 rounded-lg w-[80%] mx-auto fadeContent ${fade}`}>
+  <h2 className="text-lg mb-3 text-center">
 Forecast Values ({activeTab.toUpperCase()})
 </h2>
 
@@ -536,13 +535,12 @@ type="text"
 placeholder="Search..."
 value={search}
 onChange={(e)=>setSearch(e.target.value)}
-className="bg-gray-700 text-xs px-2 py-1 rounded hover:bg-gray-600 transition"
+className="bg-gray-700 text-xs px-2 py-1 rounded hover:bg-white/10 transition"
 />
 
 <button
 onClick={exportCSV}
 className="bg-indigo-600 px-3 py-1 text-xs rounded hover:bg-indigo-700 transition"
-
 >
 
 Export CSV </button>
@@ -648,7 +646,7 @@ ${row.load_mw === minLoad ? "text-green-400" : ""}
 
 {/* ================= GRAPH ================= */}
 
-<div className={`bg-gray-800/50 backdrop-blur-md p-4 mt-4 rounded-lg fadeContent ${fade}`}>
+<div className={`bg-black/5 p-4 mt-4 rounded-lg fadeContent ${fade}`}>
 <div className="flex justify-between items-center mb-2">
 
 <h2 className="text-lg">
@@ -665,7 +663,7 @@ Download Graph
 </div>
 <iframe
 src={getGraph()}
-className="w-full h-[450px] hover:bg-indigo-500 rounded-lg transition-colors"
+className="w-full h-[450px] hover:bg-indigo-400 rounded-lg transition-colors justify-center mx-auto"
 />
 
 </div>
@@ -677,7 +675,7 @@ className="w-full h-[450px] hover:bg-indigo-500 rounded-lg transition-colors"
 {["trend","academic","features"].map(section=>(
 <Disclosure key={section}>
 
-<div className="bg-gray-800/50 backdrop-blur-md rounded-lg hover:bg-gray-700 transition-colors overflow-hidden">
+<div className="bg-white/5 backdrop-blur-md rounded-lg hover:bg-black/10 transition-colors overflow-hidden">
 <Disclosure.Button className="w-full px-4 py-2 text-left text-sm font-semibold transition-all duration-300 hover:text-indigo-400 hover:pl-5">{section.toUpperCase()}
 
 </Disclosure.Button>

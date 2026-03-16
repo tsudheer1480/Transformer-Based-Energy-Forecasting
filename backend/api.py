@@ -1,13 +1,16 @@
+import os
+# limit numpy / torch threads
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
 import torch
 import numpy as np
 import pandas as pd
-import os
 import joblib
-import sys
 
+import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from models.hybrid_multitask import HybridMultiTask
@@ -16,7 +19,12 @@ from visualization.future_forecast_plot import plot_future_forecast
 from evaluation.evaluate_multiscale import evaluate_multiscale
 from interface.forecast_interface import generate_forecast_outputs
 from explainability.dynamic_feature_importance import compute_dynamic_feature_importance
+
+torch.set_num_threads(1)
+torch.set_grad_enabled(False)
 device = torch.device(DEVICE)
+
+print("Using device:", device)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -81,7 +89,40 @@ def generate_features(df):
 
     return df
 
+@app.get("/")
+def home():
+    return {
+        "message": "Welcome to the Energy Forecasting API. Use /run_model to get forecasts."
+    }
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.on_event("startup")
+def load_model():
+
+    global model, feature_scaler, target_scaler
+
+    # prevent loading twice
+    if model is not None:
+        return
+
+    print("Loading model...")
+
+    model = HybridMultiTask(input_dim=INPUT_DIM)
+
+    model.load_state_dict(
+        torch.load(MODEL_PATH, map_location=device, weights_only=True)
+    )
+
+    model.to(device)
+    model.eval()
+
+    feature_scaler = joblib.load(FEATURE_SCALER_PATH)
+    target_scaler = joblib.load(TARGET_SCALER_PATH)
+
+    print("Model loaded successfully.")
 @app.post("/run_model")
 async def run_model(
     file: UploadFile = File(...),
@@ -90,26 +131,20 @@ async def run_model(
 
     try:
 
-        df = pd.read_csv(file.file)
+        df = pd.read_csv(file.file, low_memory=False)
+
+        # convert numeric columns safely
+        for col in df.columns:
+            if col != "time":
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
+        # remove bad rows
+        df = df.dropna().reset_index(drop=True)
+        if len(df) > 50000:
+            df = df.tail(50000)
+
         global model, feature_scaler, target_scaler
 
-        if model is None:
-
-            print("Loading model...")
-
-            model = HybridMultiTask(input_dim=INPUT_DIM)
-
-            model.load_state_dict(
-                torch.load(MODEL_PATH, map_location=device, weights_only=True)
-            )
-
-            model.to(device)
-            model.eval()
-
-            feature_scaler = joblib.load(FEATURE_SCALER_PATH)
-            target_scaler = joblib.load(TARGET_SCALER_PATH)
-
-            print("Model loaded successfully.")
 
         # Minimum raw rows check
         if len(df) < 200:
@@ -143,11 +178,17 @@ async def run_model(
             'rolling_mean_24','rolling_std_24'
         ]
 
-        forecast_results = generate_forecast_outputs(df,feature_cols,target_scaler,model)
+        with torch.no_grad():
+            forecast_results = generate_forecast_outputs(df, feature_cols, target_scaler, model)
 
+        if forecast_results is None:
+            raise HTTPException(
+                status_code=500,
+                detail="Forecast generation failed."
+            )
         feature_importance = compute_dynamic_feature_importance(
             model,
-            df,
+            df.tail(LOOKBACK * 2),
             feature_cols,
             device,
             LOOKBACK
@@ -157,6 +198,7 @@ async def run_model(
             {"feature": f[0], "score": round(f[1],4)}
             for f in feature_importance[:8]
         ]
+        # top_features = []
         last_time = pd.to_datetime(df["time"].iloc[-1])
 
         path_24 = plot_future_forecast(
