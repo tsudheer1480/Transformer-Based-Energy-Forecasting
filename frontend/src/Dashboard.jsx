@@ -11,6 +11,7 @@ export default function Dashboard() {
 
 // ====================== STATE VARIABLES ======================
 const API_URL = "https://transformer-based-energy-forecasting.onrender.com"
+
 const dots = []
 
 for(let r=0;r<rows;r++){
