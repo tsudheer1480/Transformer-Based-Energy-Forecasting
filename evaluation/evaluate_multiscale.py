@@ -6,7 +6,7 @@ from models.hybrid_multitask import HybridMultiTask
 from config import DEVICE, MODEL_PATH
 import os
 
-def evaluate_multiscale(df, feature_cols, target_scaler):
+def evaluate_multiscale(df, feature_cols, target_scaler, model):
 
     dataset = DatasetMultiTask(df, feature_cols)
 
@@ -14,22 +14,20 @@ def evaluate_multiscale(df, feature_cols, target_scaler):
         print("Evaluation skipped (insufficient samples).")
         return None
 
-    loader = DataLoader(dataset, batch_size=1, shuffle=False)
-
-    model = HybridMultiTask(len(feature_cols)).to(DEVICE)
-    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    MODEL_FULL_PATH = os.path.join(BASE_DIR, MODEL_PATH)
-
-    model.load_state_dict(torch.load(MODEL_FULL_PATH, map_location=DEVICE, weights_only=True))    
-    model.eval()
- 
+    loader = DataLoader(dataset, batch_size=16, shuffle=False) 
     actual_24, pred_24 = [], []
     actual_7d, pred_7d = [], []
     actual_30d, pred_30d = [], []
 
     with torch.no_grad():
-        for x, y24, y7d, y30d in loader:
-
+        for i, (x, y24, y7d, y30d) in enumerate(loader):
+            # ✅ Memory check (every 50 steps to avoid spam)
+            if i % 50 == 0:
+                import psutil, os
+                process = psutil.Process(os.getpid())
+                mem = process.memory_info().rss / (1024 ** 2)
+                print(f"Memory Usage: {mem:.2f} MB")
+    
             x = x.to(DEVICE)
 
             p24, p7d, p30d, _ = model(x)

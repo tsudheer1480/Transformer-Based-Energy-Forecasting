@@ -8,8 +8,7 @@ TARGET_COL = "load"
 DEVICE = "cpu"
 # print("Using device:", DEVICE)
 
-LOOKBACK = 168
-
+LOOKBACK =720
 HORIZON_24 = 24
 HORIZON_7D = 168
 HORIZON_30D = 720

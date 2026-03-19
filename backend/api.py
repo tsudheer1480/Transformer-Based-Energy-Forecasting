@@ -160,8 +160,8 @@ async def run_model(
 
         # remove bad rows
         df = df.dropna().reset_index(drop=True)
-        if len(df) > 15000:
-            df = df.tail(15000)
+        if len(df) > 3000:
+            df = df.tail(3000)
 
         model, feature_scaler, target_scaler = get_model_and_scalers()
 
@@ -265,7 +265,10 @@ async def run_model(
         }
 
         if mode.lower() == "evaluate":
-
+            raise HTTPException(
+                    status_code=403,
+                    detail="Evaluation disabled in deployed version."
+            )
             df_eval = df.copy()
 
             feature_cols_no_target = [c for c in feature_cols if c != "load"]
@@ -280,7 +283,8 @@ async def run_model(
             evaluation_results = evaluate_multiscale(
                 df_eval,
                 feature_cols,
-                target_scaler
+                target_scaler,
+                model  
             )
 
             clean_results = {k: float(v) for k, v in evaluation_results.items()}
