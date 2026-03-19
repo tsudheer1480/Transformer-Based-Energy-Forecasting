@@ -1,24 +1,37 @@
-__pycache__
+# Python
+__pycache__/
 *.pyc
 *.pyo
-*.pyd
 
-.env
+# Git
 .git
 .gitignore
 
-node_modules
+# Env
+.env
+venv/
+.venv/
 
+# Node
+node_modules/
 
+# Data files
+*.csv
 *.xlsx
-*.ipynb
+*.parquet
 
+# Model files
+*.pth
+*.pt
+*.pkl
+
+# Folders
+data/
+datasets/
 checkpoints/
 models/
+results/
 
-*.pt
-
-venv/
-.env/
-
-data/
+# Frontend build (optional)
+dist/
+build/
