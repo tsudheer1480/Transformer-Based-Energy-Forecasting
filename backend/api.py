@@ -46,6 +46,37 @@ model = None
 feature_scaler = None
 target_scaler = None
 
+def get_model_and_scalers():
+
+    global model, feature_scaler, target_scaler
+
+    if model is None:
+        print("Lazy loading model...")
+
+        model_local = HybridMultiTask(input_dim=INPUT_DIM)
+
+        state_dict = torch.load(MODEL_PATH, map_location=device, weights_only=True)
+
+        # remove positional encoding weights
+        state_dict = {
+            k: v for k, v in state_dict.items()
+            if "positional_encoding.pe" not in k
+        }
+        model_local.load_state_dict(state_dict, strict=False)
+
+        model_local.to(device)
+        model_local.eval()
+
+        fs = joblib.load(FEATURE_SCALER_PATH)
+        ts = joblib.load(TARGET_SCALER_PATH)
+
+        model = model_local
+        feature_scaler = fs
+        target_scaler = ts
+
+        print("Model loaded successfully (lazy).")
+
+    return model, feature_scaler, target_scaler
 app = FastAPI()
 
 app.add_middleware(
@@ -99,30 +130,8 @@ def home():
 def health():
     return {"status": "ok"}
 
-@app.on_event("startup")
-def load_model():
 
-    global model, feature_scaler, target_scaler
 
-    # prevent loading twice
-    if model is not None:
-        return
-
-    print("Loading model...")
-
-    model = HybridMultiTask(input_dim=INPUT_DIM)
-
-    model.load_state_dict(
-        torch.load(MODEL_PATH, map_location=device, weights_only=True)
-    )
-
-    model.to(device)
-    model.eval()
-
-    feature_scaler = joblib.load(FEATURE_SCALER_PATH)
-    target_scaler = joblib.load(TARGET_SCALER_PATH)
-
-    print("Model loaded successfully.")
 @app.post("/run_model")
 async def run_model(
     file: UploadFile = File(...),
@@ -140,11 +149,10 @@ async def run_model(
 
         # remove bad rows
         df = df.dropna().reset_index(drop=True)
-        if len(df) > 50000:
-            df = df.tail(50000)
+        if len(df) > 15000:
+            df = df.tail(15000)
 
-        global model, feature_scaler, target_scaler
-
+        model, feature_scaler, target_scaler = get_model_and_scalers()
 
         # Minimum raw rows check
         if len(df) < 200:
