@@ -55,13 +55,24 @@ def get_model_and_scalers():
 
         model_local = HybridMultiTask(input_dim=INPUT_DIM)
 
-        state_dict = torch.load(MODEL_PATH, map_location=device, weights_only=True)
+        state_dict = torch.load(MODEL_PATH, map_location=device)
 
-        # remove positional encoding weights
-        state_dict = {
-            k: v for k, v in state_dict.items()
-            if "positional_encoding.pe" not in k
-        }
+        # Handle positional encoding mismatch safely
+        if "positional_encoding.pe" in state_dict:
+            pretrained_pe = state_dict["positional_encoding.pe"]
+
+            if pretrained_pe.shape[1] != LOOKBACK:
+                print(f"Adjusting PE from {pretrained_pe.shape[1]} → {LOOKBACK}")
+
+                if pretrained_pe.shape[1] > LOOKBACK:
+                    # truncate
+                    state_dict["positional_encoding.pe"] = pretrained_pe[:, :LOOKBACK, :]
+                else:
+                    # pad
+                    pad_size = LOOKBACK - pretrained_pe.shape[1]
+                    pad = torch.zeros((1, pad_size, pretrained_pe.shape[2]))
+                    state_dict["positional_encoding.pe"] = torch.cat([pretrained_pe, pad], dim=1)
+
         model_local.load_state_dict(state_dict, strict=False)
 
         model_local.to(device)
