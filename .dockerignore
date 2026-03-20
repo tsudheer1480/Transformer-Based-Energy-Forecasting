@@ -35,3 +35,8 @@ results/
 # Frontend build (optional)
 dist/
 build/
+
+frontend/
+results/
+screenshots/
+*.ipynb
