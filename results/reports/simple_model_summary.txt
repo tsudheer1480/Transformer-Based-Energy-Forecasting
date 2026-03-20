@@ -1,0 +1,5 @@
+
+
+================= SIMPLE MODEL SUMMARY =================
+
+The forecast is mainly based on recent electricity usage patterns and the regular daily demand cycle. Since electricity consumption typically rises in the evening, the model predicts a peak around hour 23 (approximately 66,880 MW), while also providing a reasonable uncertainty range of about 3,067 MW to account for normal variations.

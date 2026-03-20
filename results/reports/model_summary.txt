@@ -1,0 +1,5 @@
+
+
+================= MODEL SUMMARY =================
+
+The forecast is primarily influenced by recent electricity demand trends, indicating strong short-term dependency in load behavior. The model captures daily consumption cycles, recognizing variations between lower nighttime demand and higher evening peak usage. The model anticipates a peak demand around hour 23, reaching approximately 66,880 MW, reflecting typical high-consumption evening behavior. The prediction interval indicates an average uncertainty range of 3,067 MW, suggesting a stable and well-calibrated forecast.
